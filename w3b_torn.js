@@ -6,7 +6,7 @@
 // @author       pakeh
 // @match        https://weav3r.dev/favorites
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=centurygames.cn
-// @grant        none
+// @grant        GM_notification
 // @lincense     MIT
 // ==/UserScript==
 
@@ -15,13 +15,17 @@
 
     // 全局样式配置
     const CONFIG = {
-        minProfit: 1000,
-        minProfitRate: 0, // 最小利润率阈值（百分比）
-        specificItems: '', // 特定品种提醒参数，格式：[物品1,价格;物品2,价格]
+        minProfit: 5000,
+        minProfitRate: 4, // 最小利润率阈值（百分比）
+        specificItems: 'Xanax,810000', // 特定品种提醒参数，格式：[物品1,价格;物品2,价格]
         highlightColor: '#ffeb3b',
+        lightHighlightColor: '#fff9c4', // 浅黄色，用于重复数据
         profitColor: '#4caf50',
         lossColor: '#f44336'
     };
+
+    // 存储上一次的数据状态，用于检测重复
+    let previousDataState = null;
 
     // 创建设置按钮元素
     function createSettingButton() {
@@ -214,19 +218,19 @@
         }
     }
 
-    // 判断是否应该高亮显示
+    // 判断是否应该高亮显示，并返回满足的条件类型
     function shouldHighlight(price, profit, profitRate, itemName) {
         // 根据配置的最小利润、利润率和特定品种判断商品是否符合高亮条件
-        if (!price || !profit || price === 'N/A' || profit === 'N/A') return false;
+        if (!price || !profit || price === 'N/A' || profit === 'N/A') return { highlight: false, reason: '' };
         
         const pr = parseFloat(profit.replace(/,/g, ''));
         const prRate = parseFloat(profitRate) || 0;
         
         // 检查最小利润条件
-        if (pr >= CONFIG.minProfit) return true;
+        if (pr >= CONFIG.minProfit) return { highlight: true, reason: '最小利润' };
         
         // 检查最小利润率条件
-        if (CONFIG.minProfitRate > 0 && prRate >= CONFIG.minProfitRate) return true;
+        if (CONFIG.minProfitRate > 0 && prRate >= CONFIG.minProfitRate) return { highlight: true, reason: '利润率' };
         
         // 检查特定品种条件
         if (CONFIG.specificItems && itemName && itemName !== 'N/A') {
@@ -235,13 +239,88 @@
                 if (itemName.toLowerCase().includes(item.name.toLowerCase())) {
                     const itemPrice = parseFloat(price.replace(/,/g, ''));
                     if (!isNaN(itemPrice) && itemPrice <= item.price) {
-                        return true;
+                        return { highlight: true, reason: '特定品种' };
                     }
                 }
             }
         }
         
-        return false;
+        return { highlight: false, reason: '' };
+    }
+
+    // 生成数据状态的唯一标识
+    function generateDataState(data) {
+        const highlightedItems = data.filter(item => item.highlight);
+        return highlightedItems.map(item => `${item.topriceId}|${item.price}`).sort().join('||');
+    }
+
+    // 发送批量通知
+    function sendBatchNotification(items) {
+        if (items.length === 0) return;
+        
+        let notificationText = '';
+        if (items.length === 1) {
+            notificationText = `${items[0].itemName} 满足${items[0].highlightReason}条件`;
+        } else {
+            // 按条件分组
+            const groupedItems = {};
+            items.forEach(item => {
+                if (!groupedItems[item.highlightReason]) {
+                    groupedItems[item.highlightReason] = [];
+                }
+                groupedItems[item.highlightReason].push(item.itemName);
+            });
+            
+            // 构建通知文本
+            const parts = [];
+            for (const [reason, names] of Object.entries(groupedItems)) {
+                if (names.length === 1) {
+                    parts.push(`${names[0]}(${reason})`);
+                } else {
+                    parts.push(`${names.length}个商品(${reason})`);
+                }
+            }
+            
+            notificationText = `发现 ${items.length} 个符合条件的商品：${parts.join('，')}`;
+        }
+        
+        if (typeof GM_notification !== 'undefined') {
+            GM_notification({
+                title: '商品提醒',
+                text: notificationText,
+                highlight: true,
+                timeout: 8000
+            });
+        } else {
+            // 如果 GM_notification 不可用，使用浏览器原生通知
+            if (Notification.permission === 'granted') {
+                new Notification('商品提醒', {
+                    body: notificationText,
+                    icon: 'https://www.google.com/s2/favicons?sz=64&domain=centurygames.cn'
+                });
+            } else if (Notification.permission !== 'denied') {
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        new Notification('商品提醒', {
+                            body: notificationText,
+                            icon: 'https://www.google.com/s2/favicons?sz=64&domain=centurygames.cn'
+                        });
+                    }
+                });
+            }
+        }
+    }
+
+    // 发送单个通知（保留用于兼容性）
+    function sendNotification(itemName, reason) {
+        sendBatchNotification([{ itemName, highlightReason: reason }]);
+    }
+
+    // 检查数据是否重复
+    function isDataDuplicate(currentData, previousState) {
+        if (!previousState) return false;
+        const currentState = generateDataState(currentData);
+        return currentState === previousState;
     }
 
     // 获取收益颜色
@@ -393,7 +472,7 @@
                 }
                 
                 const profitRate = calculateProfitRate(mrkt, top1PriceValue);
-                const highlight = shouldHighlight(top1PriceValue, totalProfit, profitRate, itemName);
+                const highlightResult = shouldHighlight(top1PriceValue, totalProfit, profitRate, itemName);
                 
                 extractedData.push({
                     index: index + 1,
@@ -409,7 +488,8 @@
                     profit: totalProfit,
                     profitRate,
                     priceDiff,
-                    highlight,
+                    highlight: highlightResult.highlight,
+                    highlightReason: highlightResult.reason,
                     top1Id,
                     top1Link,
                     top1Quantity,
@@ -429,16 +509,54 @@
                 
 
                 
+                // 高亮符合条件的商品卡片
+                if (highlightResult.highlight) {
+                    element.style.backgroundColor = CONFIG.highlightColor;
+                    element.style.transition = 'background-color 0.3s ease';
+                }
+                
             } catch (error) {
                 console.error(`处理元素 ${index + 1} 时出错:`, error);
             }
         });
         
-        displayExtractedData(extractedData);
+        // 检查数据是否重复
+        const isDuplicate = isDataDuplicate(extractedData, previousDataState);
+        
+        // 如果不是重复数据，发送通知并更新状态
+        if (!isDuplicate) {
+            const newHighlightedItems = extractedData.filter(item => item.highlight);
+            
+            // 如果有上一次数据，比较找出新增的高亮项目
+            if (previousDataState) {
+                const previousHighlightedItems = JSON.parse(previousDataState).highlightedItems || [];
+                const previousItemNames = new Set(previousHighlightedItems.map(item => `${item.itemName}|${item.price}|${item.profit}`));
+                
+                newHighlightedItems.forEach(item => {
+                    const itemKey = `${item.itemName}|${item.price}|${item.profit}`;
+                    if (!previousItemNames.has(itemKey)) {
+                        sendNotification(item.itemName, item.highlightReason);
+                    }
+                });
+            } else {
+                // 第一次运行，为所有高亮项目发送通知
+                newHighlightedItems.forEach(item => {
+                    sendNotification(item.itemName, item.highlightReason);
+                });
+            }
+            
+            // 更新数据状态
+            previousDataState = JSON.stringify({
+                state: generateDataState(extractedData),
+                highlightedItems: newHighlightedItems
+            });
+        }
+        
+        displayExtractedData(extractedData, isDuplicate);
     }
     
     // 显示提取数据的函数（优化版）
-    function displayExtractedData(data) {
+    function displayExtractedData(data, isDuplicate = false) {
         // 创建一个美观的数据展示面板，以表格形式显示提取的商品数据
         const existingDisplay = document.getElementById('item-data-display');
         if (existingDisplay) {
@@ -568,9 +686,16 @@
             const tbody = document.createElement('tbody');
             data.forEach((item, index) => {
                 const row = document.createElement('tr');
+                
+                // 根据是否重复数据选择高亮颜色
+                let highlightColor = '';
+                if (item.highlight) {
+                    highlightColor = isDuplicate ? CONFIG.lightHighlightColor : '#fff3cd';
+                }
+                
                 row.style.cssText = `
                     border-bottom: 1px solid #eee;
-                    ${item.highlight ? 'background-color: #fff3cd;' : ''}
+                    ${highlightColor ? `background-color: ${highlightColor};` : ''}
                 `;
                 row.classList.add('data-row');
                 
