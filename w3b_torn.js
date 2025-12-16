@@ -305,6 +305,16 @@
                     });
                 }
                 
+                // 计算价差
+                let priceDiff = 'N/A';
+                if (mrkt !== 'N/A' && top1PriceValue !== 'N/A') {
+                    const m = parseFloat(mrkt.replace(/,/g, ''));
+                    const p = parseFloat(top1PriceValue.replace(/,/g, ''));
+                    if (!isNaN(m) && !isNaN(p)) {
+                        priceDiff = (m - p).toLocaleString();
+                    }
+                }
+                
                 const profitRate = calculateProfitRate(mrkt, top1PriceValue);
                 const highlight = shouldHighlight(top1PriceValue, top1Profit);
                 
@@ -320,6 +330,7 @@
                     price: top1PriceValue,
                     profit: top1Profit,
                     profitRate,
+                    priceDiff,
                     highlight,
                     top1Id,
                     top1Quantity,
@@ -470,6 +481,7 @@
                     <th style="padding: 12px 8px; text-align: right; font-weight: 600;">ID</th>
                     <th style="padding: 12px 8px; text-align: right; font-weight: 600;">数量</th>
                     <th style="padding: 12px 8px; text-align: right; font-weight: 600;">价格</th>
+                    <th style="padding: 12px 8px; text-align: right; font-weight: 600;">价差</th>
                     <th style="padding: 12px 8px; text-align: right; font-weight: 600;">收益</th>
                     <th style="padding: 12px 8px; text-align: right; font-weight: 600;">利润率</th>
                 </tr>
@@ -496,6 +508,7 @@
                     <td style="padding: 10px 8px; text-align: right; font-family: monospace; font-size: 12px;">${item.topriceId}</td>
                     <td style="padding: 10px 8px; text-align: right;">${formatNumber(item.quantity)}</td>
                     <td style="padding: 10px 8px; text-align: right; font-weight: 600;">${formatNumber(item.price)}</td>
+                    <td style="padding: 10px 8px; text-align: right; font-weight: 600; color: #2196f3;">${item.priceDiff}</td>
                     <td style="padding: 10px 8px; text-align: right; font-weight: 600; color: ${profitColor};">${item.profit}</td>
                     <td style="padding: 10px 8px; text-align: right; font-weight: 600; color: ${profitColor};">${profitRate}</td>
                 `;
