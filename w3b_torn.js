@@ -179,35 +179,50 @@
                 let topPrice = 'N/A';
                 let top2Price = 'N/A';
                 let top3Price = 'N/A';
+                let topriceId = 'N/A';
+                let quantity = 'N/A';
+                let price = 'N/A';
+                let profit = 'N/A';
                 const spaceContainer = element.querySelector('.space-y-0\\.5');
                 if (spaceContainer) {
                     const priceElements = spaceContainer.querySelectorAll('.border.rounded.px-1\\.5.py-1');
-                    // 假设有三个元素，第一个是top1低价信息，第二个是top2低价信息，第三个是top2低价信息
-                    console.log('priceElements找到的元素数量:', priceElements);
-                    if (priceElements.length >= 3) {
-                        topPrice = priceElements[0].textContent.trim();
-                        top2Price = priceElements[1].textContent.trim();
-                        top3Price = priceElements[2].textContent.trim();
-                    } else if (priceElements.length === 2) {
-                        // 回退到旧假设：第一个是价格，第二个是数量
-                        topPrice = priceElements[0].textContent.trim();
-                        quantity = priceElements[1].textContent.trim();
-                    } else if (priceElements.length === 1) {
-                        // 可能同时包含价格和数量
-                        const text = priceElements[0].textContent.trim();
-                        // 尝试解析数字
-                        const numbers = text.match(/[\d,]+/g);
-                        if (numbers && numbers.length >= 3) {
-                            topPrice = numbers[0];
-                            top2Price = numbers[1];
-                            top3Price = numbers[2];
-                        } else if (numbers && numbers.length === 2) {
-                            topPrice = numbers[0];
-                            quantity = numbers[1];
-                        } else if (numbers && numbers.length === 1) {
-                            topPrice = numbers[0];
+                    // 假设每个priceElement对应一个topPrice块，内部有两个子元素
+                    console.log('priceElements找到的元素数量:', priceElements.length);
+                    // 遍历每个priceElement（通常最多三个）
+                    priceElements.forEach((priceEl, idx) => {
+                        const children = priceEl.children;
+                        if (children.length >= 2) {
+                            // 第一个子元素是toprice的id
+                            const idEl = children[0];
+                            // 第二个子元素包含数量、价格、收益
+                            const infoEl = children[1];
+                            // 提取id
+                            const idText = idEl.textContent.trim();
+                            // 提取信息文本
+                            const infoText = infoEl.textContent.trim();
+                            // 使用正则表达式匹配 Q:25 P:$78,800 Pft:+$3,812.5
+                            const qMatch = infoText.match(/Q:\s*([\d,]+)/i);
+                            const pMatch = infoText.match(/P:\s*\$?([\d,]+(?:\.\d+)?)/i);
+                            const pftMatch = infoText.match(/Pft:\s*([+-]\$?[\d,]+(?:\.\d+)?)/i);
+                            if (idx === 0) {
+                                topriceId = idText;
+                                if (qMatch) quantity = qMatch[1];
+                                if (pMatch) price = pMatch[1];
+                                if (pftMatch) profit = pftMatch[1];
+                            }
+                            // 将原始文本存储到topPrice, top2Price, top3Price（兼容旧显示）
+                            if (idx === 0) topPrice = infoText;
+                            else if (idx === 1) top2Price = infoText;
+                            else if (idx === 2) top3Price = infoText;
+                        } else {
+                            // 如果没有两个子元素，回退到旧逻辑
+                            const text = priceEl.textContent.trim();
+                            if (idx === 0) topPrice = text;
+                            else if (idx === 1) top2Price = text;
+                            else if (idx === 2) top3Price = text;
                         }
-                    }
+                    });
+                    // 如果没有找到任何priceElements，保持默认值
                 }
                 
                 // 存储提取的数据
@@ -217,10 +232,14 @@
                     mrkt: mrkt,
                     topPrice: topPrice,
                     top2Price: top2Price,
-                    top3Price: top3Price
+                    top3Price: top3Price,
+                    topriceId: topriceId,
+                    quantity: quantity,
+                    price: price,
+                    profit: profit
                 });
                 
-                console.log(`元素 ${index + 1}:`, { itemName, mrkt, topPrice, top2Price, top3Price });
+                console.log(`元素 ${index + 1}:`, { itemName, mrkt, topPrice, top2Price, top3Price, topriceId, quantity, price, profit });
             } catch (error) {
                 console.error(`处理元素 ${index + 1} 时出错:`, error);
             }
@@ -250,7 +269,7 @@
             position: fixed;
             top: 10px;
             left: 10px;
-            width: 500px;
+            width: 700px;
             max-height: 80vh;
             background: white;
             border: 2px solid #333;
@@ -296,12 +315,16 @@
                     <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">物品</th>
                     <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Mrkt</th>
                     <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Top1价格</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">ID</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">数量</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">价格</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">收益</th>
                     <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Top2价格</th>
                     <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Top3价格</th>
                 </tr>
             `;
             table.appendChild(thead);
-            
+
             // 表体
             const tbody = document.createElement('tbody');
             data.forEach(item => {
@@ -310,6 +333,10 @@
                     <td style="border: 1px solid #ddd; padding: 8px;">${item.itemName}</td>
                     <td style="border: 1px solid #ddd; padding: 8px;">${item.mrkt}</td>
                     <td style="border: 1px solid #ddd; padding: 8px;">${item.topPrice}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">${item.topriceId}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">${item.quantity}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">${item.price}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">${item.profit}</td>
                     <td style="border: 1px solid #ddd; padding: 8px;">${item.top2Price}</td>
                     <td style="border: 1px solid #ddd; padding: 8px;">${item.top3Price}</td>
                 `;
