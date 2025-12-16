@@ -142,17 +142,34 @@
                     }
                 }
                 
-                // 提取Mrkt值（假设在带有"data-mrkt"属性的元素中或特定格式的文本中）
+                // 提取Mrkt值（在.flex-1.min-w-0中，class="font-semibold" 就是mrkt的值）
                 let mrkt = 'N/A';
-                const mrktElement = element.querySelector('[data-mrkt]');
-                if (mrktElement) {
-                    mrkt = mrktElement.textContent.trim();
-                } else {
-                    // 尝试从文本中查找Mrkt值
-                    const textContent = element.textContent;
-                    const mrktMatch = textContent.match(/Mrkt[:：]?\s*([^\n\r]+)/i);
-                    if (mrktMatch) {
-                        mrkt = mrktMatch[1].trim();
+                // 首先尝试从.flex-1.min-w-0内的.font-semibold中获取
+                if (nameContainer) {
+                    const mrktElement = nameContainer.querySelector('.font-semibold');
+                    if (mrktElement) {
+                        mrkt = mrktElement.textContent.trim();
+                    }
+                }
+                // 如果未找到，尝试data-mrkt属性
+                if (mrkt === 'N/A') {
+                    const mrktElement = element.querySelector('[data-mrkt]');
+                    if (mrktElement) {
+                        mrkt = mrktElement.textContent.trim();
+                    } else {
+                        // 尝试从文本中查找Mrkt值
+                        const textContent = element.textContent;
+                        const mrktMatch = textContent.match(/Mrkt[:：]?\s*([^\n\r]+)/i);
+                        if (mrktMatch) {
+                            mrkt = mrktMatch[1].trim();
+                        }
+                    }
+                }
+                // 移除Mrkt值前的符号（如果存在）
+                if (mrkt !== 'N/A' && mrkt.length > 0) {
+                    // 如果第一个字符不是数字，则移除
+                    if (!/^\d/.test(mrkt)) {
+                        mrkt = mrkt.slice(1);
                     }
                 }
                 
