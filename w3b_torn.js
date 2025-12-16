@@ -173,15 +173,40 @@
                     }
                 }
                 
+                // 提取top价格和数量（在class="space-y-0.5"中class="border rounded px-1.5 py-1"）
+                let topPrice = 'N/A';
+                let quantity = 'N/A';
+                const spaceContainer = element.querySelector('.space-y-0\\.5');
+                if (spaceContainer) {
+                    const priceElements = spaceContainer.querySelectorAll('.border.rounded.px-1\\.5.py-1');
+                    // 假设有两个元素，第一个是价格，第二个是数量
+                    if (priceElements.length >= 2) {
+                        topPrice = priceElements[0].textContent.trim();
+                        quantity = priceElements[1].textContent.trim();
+                    } else if (priceElements.length === 1) {
+                        // 可能同时包含价格和数量
+                        const text = priceElements[0].textContent.trim();
+                        // 尝试解析数字
+                        const numbers = text.match(/[\d,]+/g);
+                        if (numbers && numbers.length >= 2) {
+                            topPrice = numbers[0];
+                            quantity = numbers[1];
+                        } else if (numbers && numbers.length === 1) {
+                            topPrice = numbers[0];
+                        }
+                    }
+                }
                 
                 // 存储提取的数据
                 extractedData.push({
                     index: index + 1,
                     itemName: itemName,
-                    mrkt: mrkt
+                    mrkt: mrkt,
+                    topPrice: topPrice,
+                    quantity: quantity
                 });
                 
-                console.log(`元素 ${index + 1}:`, { itemName, mrkt });
+                console.log(`元素 ${index + 1}:`, { itemName, mrkt, topPrice, quantity });
             } catch (error) {
                 console.error(`处理元素 ${index + 1} 时出错:`, error);
             }
@@ -211,7 +236,7 @@
             position: fixed;
             top: 10px;
             left: 10px;
-            width: 400px;
+            width: 500px;
             max-height: 80vh;
             background: white;
             border: 2px solid #333;
@@ -256,6 +281,8 @@
                 <tr>
                     <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">物品</th>
                     <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Mrkt</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Top价格</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">数量</th>
                 </tr>
             `;
             table.appendChild(thead);
@@ -267,6 +294,8 @@
                 row.innerHTML = `
                     <td style="border: 1px solid #ddd; padding: 8px;">${item.itemName}</td>
                     <td style="border: 1px solid #ddd; padding: 8px;">${item.mrkt}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">${item.topPrice}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">${item.quantity}</td>
                 `;
                 tbody.appendChild(row);
             });
