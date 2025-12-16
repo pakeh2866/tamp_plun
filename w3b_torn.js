@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         自动高亮低价商品
 // @namespace    https://github.com/pakeh2866
-// @version      0.1
+// @version      0.2
 // @description  w3b中低于某个价格，利润在x%以上的高亮显示
 // @author       pakeh
 // @match        https://weav3r.dev/favorites
@@ -13,153 +13,243 @@
 (function() {
     'use strict';
 
+    // 全局样式配置
+    const CONFIG = {
+        minProfit: 1000,
+        maxPrice: 50000,
+        highlightColor: '#ffeb3b',
+        profitColor: '#4caf50',
+        lossColor: '#f44336'
+    };
+
     // 创建设置按钮元素
     function createSettingButton() {
+        // 创建一个齿轮图标的设置按钮，用于打开参数配置面板
         const settingButton = document.createElement('button');
-        settingButton.innerHTML = '设置';
+        settingButton.innerHTML = '⚙️';
         
         // 设置按钮样式，使用与目标按钮相似的class
         settingButton.className = 'p-2 rounded-md transition-colors relative';
         
         // 添加额外的样式
-        settingButton.style.marginRight = '5px'; // 与右侧按钮保持间距
-        settingButton.style.cursor = 'pointer'; // 确保有鼠标指针效果
-        settingButton.style.minWidth = '40px'; // 确保按钮有足够的宽度
+        settingButton.style.marginRight = '5px';
+        settingButton.style.cursor = 'pointer';
+        settingButton.style.minWidth = '40px';
+        settingButton.style.fontSize = '16px';
         
         // 设置按钮的点击事件
         settingButton.addEventListener('click', function() {
-            // 这里可以添加设置功能的逻辑
-            alert('设置按钮被点击了！');
-            // 后续可以替换为实际的设置面板或功能
+            showSettingsPanel();
         });
         
         return settingButton;
     }
     
+    // 显示设置面板
+    function showSettingsPanel() {
+        // 显示一个模态设置面板，允许用户配置最小利润和最大价格参数
+        const existingPanel = document.getElementById('settings-panel');
+        if (existingPanel) {
+            existingPanel.remove();
+            return;
+        }
+
+        const panel = document.createElement('div');
+        panel.id = 'settings-panel';
+        panel.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border: 2px solid #333;
+            border-radius: 12px;
+            padding: 20px;
+            z-index: 10001;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            font-family: Arial, sans-serif;
+            min-width: 300px;
+        `;
+
+        panel.innerHTML = `
+            <h3 style="margin: 0 0 15px 0; color: #333;">设置参数</h3>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">最小利润: $</label>
+                <input type="number" id="minProfit" value="${CONFIG.minProfit}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">最大价格: $</label>
+                <input type="number" id="maxPrice" value="${CONFIG.maxPrice}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button onclick="this.parentElement.parentElement.remove()" style="padding: 8px 16px; border: 1px solid #ddd; border-radius: 4px; background: white; cursor: pointer;">取消</button>
+                <button onclick="saveSettings()" style="padding: 8px 16px; border: none; border-radius: 4px; background: #007bff; color: white; cursor: pointer;">保存</button>
+            </div>
+        `;
+
+        document.body.appendChild(panel);
+
+        window.saveSettings = function() {
+            CONFIG.minProfit = parseFloat(document.getElementById('minProfit').value);
+            CONFIG.maxPrice = parseFloat(document.getElementById('maxPrice').value);
+            panel.remove();
+            extractItemData(); // 重新提取并高亮数据
+        };
+    }
+    
     // 插入设置按钮到目标位置
     function insertSettingButton() {
-        // 查找具有指定class的按钮
+        // 将设置按钮插入到页面指定位置，如果找不到目标位置则固定在右上角
         const targetButtons = document.querySelectorAll('.p-2.rounded-md.transition-colors.relative');
-        //console.log('找到目标按钮数量:', targetButtons.length);
         
-        // 如果找到了目标按钮，则在第一个按钮的左侧添加设置按钮
         if (targetButtons.length > 0) {
             const targetButton = targetButtons[0];
-            console.log('目标按钮:', targetButton);
             
-            // 检查是否已经存在设置按钮
             const existingSettingButton = targetButton.parentNode.querySelector('[data-setting-button]');
             if (existingSettingButton) {
-                //console.log('设置按钮已存在，无需重复添加');
                 return;
             }
             
             const settingButton = createSettingButton();
-            settingButton.setAttribute('data-setting-button', 'true'); // 标记这是我们的设置按钮
+            settingButton.setAttribute('data-setting-button', 'true');
             
             targetButton.parentNode.insertBefore(settingButton, targetButton);
-            //console.log('设置按钮已插入');
         } else {
-            // 如果没有找到目标按钮，则将设置按钮添加到页面的固定位置
             const existingFixedButton = document.querySelector('[data-setting-button-fixed]');
             if (existingFixedButton) {
-                //console.log('固定位置的设置按钮已存在，无需重复添加');
                 return;
             }
             
             const settingButton = createSettingButton();
-            settingButton.setAttribute('data-setting-button-fixed', 'true'); // 标记这是固定位置的设置按钮
+            settingButton.setAttribute('data-setting-button-fixed', 'true');
             settingButton.style.position = 'fixed';
             settingButton.style.top = '10px';
             settingButton.style.right = '10px';
             settingButton.style.zIndex = '9999';
             
             document.body.appendChild(settingButton);
-            //console.log('固定位置的设置按钮已添加');
         }
     }
     
     // 页面加载完成后执行
     window.addEventListener('load', function() {
+        // 页面完全加载后初始化设置按钮
         console.log('页面加载完成，准备插入设置按钮');
         insertSettingButton();
     });
     
-    // 使用MutationObserver监听DOM变化，确保按钮不会因为页面重绘而丢失，同时提取数据
+    // 使用MutationObserver监听DOM变化
     const observer = new MutationObserver(function(mutations) {
+        // 监听页面DOM变化，确保动态加载的内容也能被处理
         mutations.forEach(function(mutation) {
-            // 检查是否有节点添加，如果有则重新尝试插入按钮
             if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-                // 延迟执行以确保DOM完全更新
                 setTimeout(insertSettingButton, 100);
-                // 同时尝试提取数据
                 setTimeout(extractItemData, 200);
             }
         });
     });
     
-    // 开始观察document.body的变化
     observer.observe(document.body, {
         childList: true,
         subtree: true
     });
     
-    // 页面加载后也立即执行一次
     if (document.readyState === 'loading') {
+        // 检查DOM加载状态，确保在合适的时机执行初始化
         document.addEventListener('DOMContentLoaded', insertSettingButton);
     } else {
-        // DOM已经加载完成
         insertSettingButton();
     }
     
+    // 格式化数字
+    function formatNumber(num) {
+        // 将数字格式化为带千位分隔符的字符串，便于阅读
+        if (!num || num === 'N/A') return 'N/A';
+        return parseFloat(num.replace(/,/g, '')).toLocaleString();
+    }
+
+    // 计算利润率
+    function calculateProfitRate(price, profit) {
+        // 根据价格和利润计算利润率百分比
+        if (!price || !profit || price === 'N/A' || profit === 'N/A') return 0;
+        const p = parseFloat(price.replace(/,/g, ''));
+        const pr = parseFloat(profit.replace(/[,$+]/g, ''));
+        return (pr / p * 100).toFixed(1);
+    }
+
+    // 判断是否应该高亮显示
+    function shouldHighlight(price, profit) {
+        // 根据配置的最小利润和最大价格判断商品是否符合高亮条件
+        if (!price || !profit || price === 'N/A' || profit === 'N/A') return false;
+        const p = parseFloat(price.replace(/,/g, ''));
+        const pr = parseFloat(profit.replace(/[,$+]/g, ''));
+        return pr >= CONFIG.minProfit && p <= CONFIG.maxPrice;
+    }
+
+    // 获取收益颜色
+    function getProfitColor(profit) {
+        // 根据利润正负返回相应的颜色（盈利为绿色，亏损为红色）
+        if (!profit || profit === 'N/A') return '#666';
+        const pr = parseFloat(profit.replace(/[,$+]/g, ''));
+        return pr >= 0 ? CONFIG.profitColor : CONFIG.lossColor;
+    }
+
     // 新增功能：查找具有指定CSS类的元素并提取信息
     function extractItemData() {
-        // 查找所有具有指定class的元素
+        // 监听DOM变化并提取页面中的商品数据
+        const elementsObserver = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                mutation.addedNodes.forEach(function(node) {
+                    if (node.nodeType === 1) {
+                        const elements = node.querySelectorAll('.border.rounded-lg.p-2.overflow-auto');
+                        if (elements.length > 0) {
+                            processElements(Array.from(elements));
+                        }
+                    }
+                });
+            });
+        });
+
         const elements = document.querySelectorAll('.border.rounded-lg.p-2.overflow-auto');
-        console.log('找到具有指定class的元素数量:', elements.length);
-        
-        // 存储提取的数据
+        if (elements.length > 0) {
+            processElements(Array.from(elements));
+        }
+    }
+
+    function processElements(elements) {
+        // 处理找到的商品元素，提取详细信息并计算相关指标
         const extractedData = [];
         
-        // 遍历每个元素
         elements.forEach((element, index) => {
             try {
-                // 提取物品名称（在具有flex-1 min-w-0类的元素中，取里面的title属性或元素）
                 let itemName = 'N/A';
                 const nameContainer = element.querySelector('.flex-1.min-w-0');
                 if (nameContainer) {
-                    // 首先尝试获取title属性
                     const titleElement = nameContainer.querySelector('[title]');
                     if (titleElement && titleElement.getAttribute('title')) {
                         itemName = titleElement.getAttribute('title').trim();
                     } else {
-                        // 如果没有title属性，尝试获取具有特定类名的元素
                         const nameElement = nameContainer.querySelector('.item-name, .name, h3, h4, span');
                         if (nameElement) {
                             itemName = nameElement.textContent.trim();
                         } else {
-                            // 最后使用容器的文本内容
                             itemName = nameContainer.textContent.trim();
                         }
                     }
                 }
                 
-                // 提取Mrkt值（在.flex-1.min-w-0中，class="font-semibold" 就是mrkt的值）
                 let mrkt = 'N/A';
-                // 首先尝试从.flex-1.min-w-0内的.font-semibold中获取
                 if (nameContainer) {
                     const mrktElement = nameContainer.querySelector('.font-semibold');
                     if (mrktElement) {
                         mrkt = mrktElement.textContent.trim();
                     }
                 }
-                // 如果未找到，尝试data-mrkt属性
                 if (mrkt === 'N/A') {
                     const mrktElement = element.querySelector('[data-mrkt]');
                     if (mrktElement) {
                         mrkt = mrktElement.textContent.trim();
                     } else {
-                        // 尝试从文本中查找Mrkt值
                         const textContent = element.textContent;
                         const mrktMatch = textContent.match(/Mrkt[:：]?\s*([^\n\r]+)/i);
                         if (mrktMatch) {
@@ -167,87 +257,69 @@
                         }
                     }
                 }
-                // 移除Mrkt值前的符号（如果存在）
                 if (mrkt !== 'N/A' && mrkt.length > 0) {
-                    // 如果第一个字符不是数字，则移除
                     if (!/^\d/.test(mrkt)) {
                         mrkt = mrkt.slice(1);
                     }
                 }
                 
-                // 提取top价格和数量（在class="space-y-0.5"中class="border rounded px-1.5 py-1"）
-                let topPrice = 'N/A';
-                let top2Price = 'N/A';
-                let top3Price = 'N/A';
+                let topPrice = 'N/A', top2Price = 'N/A', top3Price = 'N/A';
                 let top1Id = 'N/A', top1Quantity = 'N/A', top1PriceValue = 'N/A', top1Profit = 'N/A';
                 let top2Id = 'N/A', top2Quantity = 'N/A', top2PriceValue = 'N/A', top2Profit = 'N/A';
                 let top3Id = 'N/A', top3Quantity = 'N/A', top3PriceValue = 'N/A', top3Profit = 'N/A';
+                
                 const spaceContainer = element.querySelector('.space-y-0\\.5');
                 if (spaceContainer) {
                     const priceElements = spaceContainer.querySelectorAll('.border.rounded.px-1\\.5.py-1');
-                    // 假设每个priceElement对应一个topPrice块，内部有两个子元素
-                    console.log('priceElements找到的元素数量:', priceElements.length);
-                    // 遍历每个priceElement（通常最多三个）
+                    
                     priceElements.forEach((priceEl, idx) => {
                         const children = priceEl.children;
                         if (children.length >= 2) {
-                            // 第一个子元素是toprice的id
                             const idEl = children[0];
-                            // 第二个子元素包含数量、价格、收益
                             const infoEl = children[1];
-                            // 提取id
                             const idText = idEl.textContent.trim();
-                            // 提取信息文本
                             const infoText = infoEl.textContent.trim();
-                            // 使用正则表达式匹配 Q:25 P:$78,800 Pft:+$3,812.5
+                            
                             const qMatch = infoText.match(/Q:\s*([\d,]+)/i);
                             const pMatch = infoText.match(/P:\s*\$?([\d,]+(?:\.\d+)?)/i);
                             const pftMatch = infoText.match(/Pft:\s*([+-]\$?[\d,]+(?:\.\d+)?)/i);
-                            // 根据索引分配变量
+                            
                             if (idx === 0) {
                                 top1Id = idText;
-                                if (qMatch) top1Quantity = qMatch[1];
-                                if (pMatch) top1PriceValue = pMatch[1];
-                                if (pftMatch) top1Profit = pftMatch[1];
-                                topPrice = infoText; // 原始文本
+                                top1Quantity = qMatch ? qMatch[1] : 'N/A';
+                                top1PriceValue = pMatch ? pMatch[1] : 'N/A';
+                                top1Profit = pftMatch ? pftMatch[1] : 'N/A';
                             } else if (idx === 1) {
                                 top2Id = idText;
-                                if (qMatch) top2Quantity = qMatch[1];
-                                if (pMatch) top2PriceValue = pMatch[1];
-                                if (pftMatch) top2Profit = pftMatch[1];
-                                top2Price = infoText;
+                                top2Quantity = qMatch ? qMatch[1] : 'N/A';
+                                top2PriceValue = pMatch ? pMatch[1] : 'N/A';
+                                top2Profit = pftMatch ? pftMatch[1] : 'N/A';
                             } else if (idx === 2) {
                                 top3Id = idText;
-                                if (qMatch) top3Quantity = qMatch[1];
-                                if (pMatch) top3PriceValue = pMatch[1];
-                                if (pftMatch) top3Profit = pftMatch[1];
-                                top3Price = infoText;
+                                top3Quantity = qMatch ? qMatch[1] : 'N/A';
+                                top3PriceValue = pMatch ? pMatch[1] : 'N/A';
+                                top3Profit = pftMatch ? pftMatch[1] : 'N/A';
                             }
-                        } else {
-                            // 如果没有两个子元素，回退到旧逻辑
-                            const text = priceEl.textContent.trim();
-                            if (idx === 0) topPrice = text;
-                            else if (idx === 1) top2Price = text;
-                            else if (idx === 2) top3Price = text;
                         }
                     });
-                    // 如果没有找到任何priceElements，保持默认值
                 }
                 
-                // 存储提取的数据
+                const profitRate = calculateProfitRate(top1PriceValue, top1Profit);
+                const highlight = shouldHighlight(top1PriceValue, top1Profit);
+                
                 extractedData.push({
                     index: index + 1,
-                    itemName: itemName,
-                    mrkt: mrkt,
-                    topPrice: topPrice,
-                    top2Price: top2Price,
-                    top3Price: top3Price,
-                    // 兼容旧字段
+                    itemName,
+                    mrkt,
+                    topPrice,
+                    top2Price,
+                    top3Price,
                     topriceId: top1Id,
                     quantity: top1Quantity,
                     price: top1PriceValue,
                     profit: top1Profit,
-                    // 新字段
+                    profitRate,
+                    highlight,
                     top1Id,
                     top1Quantity,
                     top1PriceValue,
@@ -262,150 +334,288 @@
                     top3Profit
                 });
                 
-                console.log(`元素 ${index + 1}:`, { itemName, mrkt, topPrice, top2Price, top3Price, top1Id, top1Quantity, top1PriceValue, top1Profit, top2Id, top2Quantity, top2PriceValue, top2Profit, top3Id, top3Quantity, top3PriceValue, top3Profit });
+                // 高亮符合条件的商品卡片
+                if (highlight) {
+                    element.style.backgroundColor = CONFIG.highlightColor;
+                    element.style.transition = 'background-color 0.3s ease';
+                }
+                
             } catch (error) {
                 console.error(`处理元素 ${index + 1} 时出错:`, error);
             }
         });
         
-        // 输出提取的数据到控制台
-        console.log('提取的所有数据:', extractedData);
-        
-        // 可选：在页面上显示结果
         displayExtractedData(extractedData);
-        
-        return extractedData;
     }
     
-    // 显示提取数据的函数
+    // 显示提取数据的函数（优化版）
     function displayExtractedData(data) {
-        // 移除之前的结果显示（如果有的话）
+        // 创建一个美观的数据展示面板，以表格形式显示提取的商品数据
         const existingDisplay = document.getElementById('item-data-display');
         if (existingDisplay) {
             existingDisplay.remove();
         }
         
-        // 创建显示容器
         const displayContainer = document.createElement('div');
         displayContainer.id = 'item-data-display';
         displayContainer.style.cssText = `
             position: fixed;
-            top: 10px;
+            bottom: 10px;
             left: 10px;
-            width: 900px;
-            max-height: 80vh;
-            background: white;
-            border: 2px solid #333;
-            border-radius: 8px;
-            padding: 15px;
+            width: 1100px;
+            max-height: 85vh;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            padding: 20px;
             z-index: 10000;
-            font-size: 14px;
-            overflow-y: auto;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
         `;
         
-        // 添加标题
-        const header = document.createElement('h2');
-        header.textContent = '提取的物品数据';
-        header.style.cssText = 'margin: 0 0 10px 0; color: #333;';
-        displayContainer.appendChild(header);
+        const header = document.createElement('div');
+        header.style.cssText = `
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e0e0e0;
+        `;
         
-        // 添加关闭按钮
+        const title = document.createElement('h2');
+        title.textContent = `商品数据分析 (${data.length} 项)`;
+        title.style.cssText = 'margin: 0; color: #333; font-size: 20px; font-weight: bold;';
+        header.appendChild(title);
+        
+        const controls = document.createElement('div');
+        controls.style.cssText = 'display: flex; gap: 10px; align-items: center;';
+        
+        const stats = document.createElement('span');
+        const highlighted = data.filter(item => item.highlight).length;
+        stats.textContent = `高亮: ${highlighted}/${data.length}`;
+        stats.style.cssText = 'color: #666; font-size: 14px;';
+        controls.appendChild(stats);
+        
         const closeButton = document.createElement('button');
-        closeButton.textContent = '×';
+        closeButton.innerHTML = '×';
         closeButton.style.cssText = `
-            position: absolute;
-            top: 5px;
-            right: 10px;
-            background: none;
+            background: #ff4757;
+            color: white;
             border: none;
-            font-size: 20px;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            font-size: 18px;
             cursor: pointer;
-            color: #999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         `;
         closeButton.onclick = () => displayContainer.remove();
-        displayContainer.appendChild(closeButton);
         
-        // 如果有数据，创建表格显示
+        const minimizeButton = document.createElement('button');
+        minimizeButton.innerHTML = '−';
+        minimizeButton.style.cssText = `
+            background: #3742fa;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+        minimizeButton.onclick = () => {
+            const content = displayContainer.querySelector('.table-content');
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                minimizeButton.innerHTML = '−';
+            } else {
+                content.style.display = 'none';
+                minimizeButton.innerHTML = '+';
+            }
+        };
+        
+        controls.appendChild(minimizeButton);
+        controls.appendChild(closeButton);
+        header.appendChild(controls);
+        displayContainer.appendChild(header);
+        
         if (data.length > 0) {
-            const table = document.createElement('table');
-            table.style.cssText = 'width: 100%; border-collapse: collapse;';
+            const content = document.createElement('div');
+            content.className = 'table-content';
+            content.style.cssText = 'max-height: 70vh; overflow-y: auto;';
             
-            // 表头
+            const table = document.createElement('table');
+            table.style.cssText = `
+                width: 100%;
+                border-collapse: collapse;
+                background: white;
+                border-radius: 8px;
+                overflow: hidden;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            `;
+            
             const thead = document.createElement('thead');
             thead.innerHTML = `
-                <tr>
-                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">物品</th>
-                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Mrkt</th>
-                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Top1价格</th>
-                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">ID</th>
-                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">数量</th>
-                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">价格</th>
-                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">收益</th>
-                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Top2价格</th>
-                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Top3价格</th>
+                <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <th style="padding: 12px 8px; text-align: left; font-weight: 600;">物品</th>
+                    <th style="padding: 12px 8px; text-align: right; font-weight: 600;">Mrkt</th>
+                    <th style="padding: 12px 8px; text-align: right; font-weight: 600;">Top1价格</th>
+                    <th style="padding: 12px 8px; text-align: right; font-weight: 600;">ID</th>
+                    <th style="padding: 12px 8px; text-align: right; font-weight: 600;">数量</th>
+                    <th style="padding: 12px 8px; text-align: right; font-weight: 600;">价格</th>
+                    <th style="padding: 12px 8px; text-align: right; font-weight: 600;">收益</th>
+                    <th style="padding: 12px 8px; text-align: right; font-weight: 600;">利润率</th>
+                    <th style="padding: 12px 8px; text-align: right; font-weight: 600;">Top2价格</th>
+                    <th style="padding: 12px 8px; text-align: right; font-weight: 600;">Top3价格</th>
                 </tr>
             `;
             table.appendChild(thead);
-
-            // 表体
+            
             const tbody = document.createElement('tbody');
-            data.forEach(item => {
+            data.forEach((item, index) => {
                 const row = document.createElement('tr');
+                row.style.cssText = `
+                    border-bottom: 1px solid #eee;
+                    transition: background-color 0.2s ease;
+                    ${item.highlight ? 'background-color: #fff3cd;' : ''}
+                `;
+                row.onmouseover = () => row.style.backgroundColor = '#f8f9fa';
+                row.onmouseout = () => row.style.backgroundColor = item.highlight ? '#fff3cd' : 'transparent';
+                
+                const profitColor = getProfitColor(item.profit);
+                const profitRate = item.profitRate ? `${item.profitRate}%` : 'N/A';
+                
                 row.innerHTML = `
-                    <td style="border: 1px solid #ddd; padding: 8px;">${item.itemName}</td>
-                    <td style="border: 1px solid #ddd; padding: 8px;">${item.mrkt}</td>
-                    <td style="border: 1px solid #ddd; padding: 8px;">${item.topPrice}</td>
-                    <td style="border: 1px solid #ddd; padding: 8px;">${item.topriceId}</td>
-                    <td style="border: 1px solid #ddd; padding: 8px;">${item.quantity}</td>
-                    <td style="border: 1px solid #ddd; padding: 8px;">${item.price}</td>
-                    <td style="border: 1px solid #ddd; padding: 8px;">${item.profit}</td>
-                    <td style="border: 1px solid #ddd; padding: 8px;">${item.top2Price}</td>
-                    <td style="border: 1px solid #ddd; padding: 8px;">${item.top3Price}</td>
+                    <td style="padding: 10px 8px; font-weight: 500; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.itemName}</td>
+                    <td style="padding: 10px 8px; text-align: right; color: #666;">${formatNumber(item.mrkt)}</td>
+                    <td style="padding: 10px 8px; text-align: right; font-weight: 600;">${formatNumber(item.price)}</td>
+                    <td style="padding: 10px 8px; text-align: right; font-family: monospace; font-size: 12px;">${item.topriceId}</td>
+                    <td style="padding: 10px 8px; text-align: right;">${formatNumber(item.quantity)}</td>
+                    <td style="padding: 10px 8px; text-align: right; font-weight: 600;">${formatNumber(item.price)}</td>
+                    <td style="padding: 10px 8px; text-align: right; font-weight: 600; color: ${profitColor};">${item.profit}</td>
+                    <td style="padding: 10px 8px; text-align: right; font-weight: 600; color: ${profitColor};">${profitRate}</td>
+                    <td style="padding: 10px 8px; text-align: right; color: #666;">${item.top2Price}</td>
+                    <td style="padding: 10px 8px; text-align: right; color: #666;">${item.top3Price}</td>
                 `;
                 tbody.appendChild(row);
             });
             table.appendChild(tbody);
             
-            displayContainer.appendChild(table);
+            content.appendChild(table);
+            displayContainer.appendChild(content);
+            
+            const footer = document.createElement('div');
+            footer.style.cssText = `
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-top: 15px;
+                padding-top: 10px;
+                border-top: 1px solid #e0e0e0;
+            `;
+            
+            const refreshButton = document.createElement('button');
+            refreshButton.textContent = '🔄 刷新数据';
+            refreshButton.style.cssText = `
+                padding: 10px 20px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+                font-weight: 600;
+                transition: transform 0.2s ease;
+            `;
+            refreshButton.onmouseover = () => refreshButton.style.transform = 'scale(1.05)';
+            refreshButton.onmouseout = () => refreshButton.style.transform = 'scale(1)';
+            refreshButton.onclick = () => {
+                displayContainer.remove();
+                extractItemData();
+            };
+            
+            footer.appendChild(refreshButton);
+            displayContainer.appendChild(footer);
+            
         } else {
             const noData = document.createElement('p');
-            noData.textContent = '未找到具有指定class的元素。';
-            noData.style.color = '#666';
+            noData.textContent = '未找到商品数据，请确保页面已完全加载。';
+            noData.style.cssText = 'text-align: center; color: #666; font-size: 16px; padding: 40px;';
             displayContainer.appendChild(noData);
         }
         
-        // 添加刷新按钮
-        const refreshButton = document.createElement('button');
-        refreshButton.textContent = '刷新数据';
-        refreshButton.style.cssText = `
-            margin-top: 10px;
-            padding: 8px 15px;
-            background: #007bff;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        `;
-        refreshButton.onclick = () => {
-            displayContainer.remove();
-            extractItemData();
-        };
-        displayContainer.appendChild(refreshButton);
+        // 使面板可拖动
+        makeDraggable(displayContainer);
         
-        // 添加到页面
         document.body.appendChild(displayContainer);
     }
     
+    
+    // 使元素可拖动
+    function makeDraggable(element) {
+        let isDragging = false;
+        let currentX;
+        let currentY;
+        let initialX;
+        let initialY;
+        let xOffset = 0;
+        let yOffset = 0;
 
+        element.style.cursor = 'move';
+        
+        element.addEventListener('mousedown', dragStart);
+        document.addEventListener('mousemove', drag);
+        document.addEventListener('mouseup', dragEnd);
+
+        function dragStart(e) {
+            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
+            
+            initialX = e.clientX - xOffset;
+            initialY = e.clientY - yOffset;
+
+            if (e.target === element || e.target.parentElement === element) {
+                isDragging = true;
+            }
+        }
+
+        function drag(e) {
+            if (isDragging) {
+                e.preventDefault();
+                currentX = e.clientX - initialX;
+                currentY = e.clientY - initialY;
+
+                xOffset = currentX;
+                yOffset = currentY;
+
+                element.style.transform = `translate(${currentX}px, ${currentY}px)`;
+                element.style.left = '10px';
+                element.style.top = '10px';
+            }
+        }
+
+        function dragEnd(e) {
+            initialX = currentX;
+            initialY = currentY;
+            isDragging = false;
+        }
+    }
+    
     // 页面加载完成后立即执行一次
     window.addEventListener('load', extractItemData);
     
     // DOM内容加载完成后也执行一次
     if (document.readyState === 'loading') {
+        // 确保在DOM加载完成后立即开始数据提取
         document.addEventListener('DOMContentLoaded', extractItemData);
     } else {
-        // DOM已经加载完成
+        // 如果DOM已经加载完成，直接执行数据提取
         extractItemData();
     }
 })();
