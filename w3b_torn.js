@@ -40,7 +40,7 @@
     function insertSettingButton() {
         // 查找具有指定class的按钮
         const targetButtons = document.querySelectorAll('.p-2.rounded-md.transition-colors.relative');
-        console.log('找到目标按钮数量:', targetButtons.length);
+        //console.log('找到目标按钮数量:', targetButtons.length);
         
         // 如果找到了目标按钮，则在第一个按钮的左侧添加设置按钮
         if (targetButtons.length > 0) {
@@ -50,7 +50,7 @@
             // 检查是否已经存在设置按钮
             const existingSettingButton = targetButton.parentNode.querySelector('[data-setting-button]');
             if (existingSettingButton) {
-                console.log('设置按钮已存在，无需重复添加');
+                //console.log('设置按钮已存在，无需重复添加');
                 return;
             }
             
@@ -58,12 +58,12 @@
             settingButton.setAttribute('data-setting-button', 'true'); // 标记这是我们的设置按钮
             
             targetButton.parentNode.insertBefore(settingButton, targetButton);
-            console.log('设置按钮已插入');
+            //console.log('设置按钮已插入');
         } else {
             // 如果没有找到目标按钮，则将设置按钮添加到页面的固定位置
             const existingFixedButton = document.querySelector('[data-setting-button-fixed]');
             if (existingFixedButton) {
-                console.log('固定位置的设置按钮已存在，无需重复添加');
+                //console.log('固定位置的设置按钮已存在，无需重复添加');
                 return;
             }
             
@@ -75,7 +75,7 @@
             settingButton.style.zIndex = '9999';
             
             document.body.appendChild(settingButton);
-            console.log('固定位置的设置按钮已添加');
+            //console.log('固定位置的设置按钮已添加');
         }
     }
     
@@ -178,15 +178,16 @@
                 // 提取top价格和数量（在class="space-y-0.5"中class="border rounded px-1.5 py-1"）
                 let topPrice = 'N/A';
                 let top2Price = 'N/A';
-                let quantity = 'N/A';
+                let top3Price = 'N/A';
                 const spaceContainer = element.querySelector('.space-y-0\\.5');
                 if (spaceContainer) {
                     const priceElements = spaceContainer.querySelectorAll('.border.rounded.px-1\\.5.py-1');
-                    // 假设有三个元素，第一个是top1低价信息，第二个是top2低价信息，第三个是数量
+                    // 假设有三个元素，第一个是top1低价信息，第二个是top2低价信息，第三个是top2低价信息
+                    console.log('priceElements找到的元素数量:', priceElements.length);
                     if (priceElements.length >= 3) {
                         topPrice = priceElements[0].textContent.trim();
                         top2Price = priceElements[1].textContent.trim();
-                        quantity = priceElements[2].textContent.trim();
+                        top3Price = priceElements[2].textContent.trim();
                     } else if (priceElements.length === 2) {
                         // 回退到旧假设：第一个是价格，第二个是数量
                         topPrice = priceElements[0].textContent.trim();
@@ -199,7 +200,7 @@
                         if (numbers && numbers.length >= 3) {
                             topPrice = numbers[0];
                             top2Price = numbers[1];
-                            quantity = numbers[2];
+                            top3Price = numbers[2];
                         } else if (numbers && numbers.length === 2) {
                             topPrice = numbers[0];
                             quantity = numbers[1];
@@ -216,10 +217,10 @@
                     mrkt: mrkt,
                     topPrice: topPrice,
                     top2Price: top2Price,
-                    quantity: quantity
+                    top3Price: top3Price
                 });
                 
-                console.log(`元素 ${index + 1}:`, { itemName, mrkt, topPrice, top2Price, quantity });
+                console.log(`元素 ${index + 1}:`, { itemName, mrkt, topPrice, top2Price, top3Price });
             } catch (error) {
                 console.error(`处理元素 ${index + 1} 时出错:`, error);
             }
@@ -296,7 +297,7 @@
                     <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Mrkt</th>
                     <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Top1价格</th>
                     <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Top2价格</th>
-                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">数量</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Top3价格</th>
                 </tr>
             `;
             table.appendChild(thead);
@@ -310,7 +311,7 @@
                     <td style="border: 1px solid #ddd; padding: 8px;">${item.mrkt}</td>
                     <td style="border: 1px solid #ddd; padding: 8px;">${item.topPrice}</td>
                     <td style="border: 1px solid #ddd; padding: 8px;">${item.top2Price}</td>
-                    <td style="border: 1px solid #ddd; padding: 8px;">${item.quantity}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">${item.top3Price}</td>
                 `;
                 tbody.appendChild(row);
             });
@@ -346,9 +347,7 @@
         document.body.appendChild(displayContainer);
     }
     
-    // 定期执行提取数据的函数
-    setInterval(extractItemData, 5000); // 每5秒执行一次
-    
+
     // 页面加载完成后立即执行一次
     window.addEventListener('load', extractItemData);
     
