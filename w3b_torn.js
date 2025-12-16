@@ -466,14 +466,11 @@
                 <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
                     <th style="padding: 12px 8px; text-align: left; font-weight: 600;">物品</th>
                     <th style="padding: 12px 8px; text-align: right; font-weight: 600;">Mrkt</th>
-                    <th style="padding: 12px 8px; text-align: right; font-weight: 600;">Top1价格</th>
                     <th style="padding: 12px 8px; text-align: right; font-weight: 600;">ID</th>
                     <th style="padding: 12px 8px; text-align: right; font-weight: 600;">数量</th>
                     <th style="padding: 12px 8px; text-align: right; font-weight: 600;">价格</th>
                     <th style="padding: 12px 8px; text-align: right; font-weight: 600;">收益</th>
                     <th style="padding: 12px 8px; text-align: right; font-weight: 600;">利润率</th>
-                    <th style="padding: 12px 8px; text-align: right; font-weight: 600;">Top2价格</th>
-                    <th style="padding: 12px 8px; text-align: right; font-weight: 600;">Top3价格</th>
                 </tr>
             `;
             table.appendChild(thead);
@@ -495,14 +492,11 @@
                 row.innerHTML = `
                     <td style="padding: 10px 8px; font-weight: 500; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.itemName}</td>
                     <td style="padding: 10px 8px; text-align: right; color: #666;">${formatNumber(item.mrkt)}</td>
-                    <td style="padding: 10px 8px; text-align: right; font-weight: 600;">${formatNumber(item.price)}</td>
                     <td style="padding: 10px 8px; text-align: right; font-family: monospace; font-size: 12px;">${item.topriceId}</td>
                     <td style="padding: 10px 8px; text-align: right;">${formatNumber(item.quantity)}</td>
                     <td style="padding: 10px 8px; text-align: right; font-weight: 600;">${formatNumber(item.price)}</td>
                     <td style="padding: 10px 8px; text-align: right; font-weight: 600; color: ${profitColor};">${item.profit}</td>
                     <td style="padding: 10px 8px; text-align: right; font-weight: 600; color: ${profitColor};">${profitRate}</td>
-                    <td style="padding: 10px 8px; text-align: right; color: #666;">${item.top2Price}</td>
-                    <td style="padding: 10px 8px; text-align: right; color: #666;">${item.top3Price}</td>
                 `;
                 tbody.appendChild(row);
             });
