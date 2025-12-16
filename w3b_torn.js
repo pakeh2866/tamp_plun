@@ -85,13 +85,15 @@
         insertSettingButton();
     });
     
-    // 使用MutationObserver监听DOM变化，确保按钮不会因为页面重绘而丢失
+    // 使用MutationObserver监听DOM变化，确保按钮不会因为页面重绘而丢失，同时提取数据
     const observer = new MutationObserver(function(mutations) {
         mutations.forEach(function(mutation) {
             // 检查是否有节点添加，如果有则重新尝试插入按钮
             if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
                 // 延迟执行以确保DOM完全更新
                 setTimeout(insertSettingButton, 100);
+                // 同时尝试提取数据
+                setTimeout(extractItemData, 200);
             }
         });
     });
