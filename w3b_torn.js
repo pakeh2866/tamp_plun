@@ -16,7 +16,6 @@
     // 全局样式配置
     const CONFIG = {
         minProfit: 1000,
-        maxPrice: 50000,
         highlightColor: '#ffeb3b',
         profitColor: '#4caf50',
         lossColor: '#f44336'
@@ -77,10 +76,6 @@
                 <label style="display: block; margin-bottom: 5px; font-weight: bold;">最小利润: $</label>
                 <input type="number" id="minProfit" value="${CONFIG.minProfit}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
             </div>
-            <div style="margin-bottom: 15px;">
-                <label style="display: block; margin-bottom: 5px; font-weight: bold;">最大价格: $</label>
-                <input type="number" id="maxPrice" value="${CONFIG.maxPrice}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-            </div>
             <div style="display: flex; gap: 10px; justify-content: flex-end;">
                 <button onclick="this.parentElement.parentElement.remove()" style="padding: 8px 16px; border: 1px solid #ddd; border-radius: 4px; background: white; cursor: pointer;">取消</button>
                 <button onclick="saveSettings()" style="padding: 8px 16px; border: none; border-radius: 4px; background: #007bff; color: white; cursor: pointer;">保存</button>
@@ -91,7 +86,6 @@
 
         window.saveSettings = function() {
             CONFIG.minProfit = parseFloat(document.getElementById('minProfit').value);
-            CONFIG.maxPrice = parseFloat(document.getElementById('maxPrice').value);
             panel.remove();
             extractItemData(); // 重新提取并高亮数据
         };
@@ -180,11 +174,10 @@
 
     // 判断是否应该高亮显示
     function shouldHighlight(price, profit) {
-        // 根据配置的最小利润和最大价格判断商品是否符合高亮条件
+        // 根据配置的最小利润判断商品是否符合高亮条件
         if (!price || !profit || price === 'N/A' || profit === 'N/A') return false;
-        const p = parseFloat(price.replace(/,/g, ''));
         const pr = parseFloat(profit.replace(/,/g, ''));
-        return pr >= CONFIG.minProfit && p <= CONFIG.maxPrice;
+        return pr >= CONFIG.minProfit;
     }
 
     // 获取收益颜色
@@ -642,7 +635,6 @@
                 <h3 style="color: #667eea; margin-bottom: 10px;">⚙️ 当前配置参数</h3>
                 <ul style="line-height: 1.8; color: #555; padding-left: 20px;">
                     <li><strong>最小利润阈值：</strong> $${CONFIG.minProfit.toLocaleString()}</li>
-                    <li><strong>最大价格限制：</strong> $${CONFIG.maxPrice.toLocaleString()}</li>
                     <li><strong>高亮颜色：</strong> ${CONFIG.highlightColor}</li>
                 </ul>
             </div>
@@ -673,7 +665,7 @@
                 <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
                     <h4 style="color: #333; margin-bottom: 8px;">4. 高亮条件判断</h4>
                     <p style="margin: 0; font-family: monospace; color: #9c27b0;">
-                        高亮显示 = (总收益 ≥ 最小利润阈值) AND (商品价格 ≤ 最大价格限制)
+                        高亮显示 = (总收益 ≥ 最小利润阈值)
                     </p>
                 </div>
             </div>
@@ -707,7 +699,7 @@
             <div style="margin-bottom: 20px;">
                 <h3 style="color: #667eea; margin-bottom: 10px;">💡 使用提示</h3>
                 <ul style="line-height: 1.8; color: #555; padding-left: 20px;">
-                    <li>点击页面右上角的 ⚙️ 按钮可以调整最小利润和最大价格参数</li>
+                    <li>点击页面右上角的 ⚙️ 按钮可以调整最小利润参数</li>
                     <li>符合高亮条件的商品会在原页面中以黄色背景显示</li>
                     <li>数据表格会实时显示所有商品的详细分析结果</li>
                     <li>点击表格中的 − 按钮可以折叠/展开数据表格</li>
