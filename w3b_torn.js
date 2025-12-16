@@ -173,44 +173,15 @@
                     }
                 }
                 
-                // 提取Top 3中的Q P值
-                const qpValues = [];
-                // 假设Q P值在带有特定类名的元素中
-                const qpElements = element.querySelectorAll('[class*="qp"], [data-qp]');
-                qpElements.forEach((qpElem, i) => {
-                    if (i < 3) { // 只取前3个
-                        qpValues.push(qpElem.textContent.trim());
-                    }
-                });
-                
-                // 如果没找到特定元素，尝试从文本中提取
-                if (qpValues.length === 0) {
-                    const textContent = element.textContent;
-                    // 匹配类似 "Q1: 123, P1: 456" 或 "QP1: 789" 的模式
-                    const qpMatches = textContent.matchAll(/(?:Q|P|QP)\d*[:：]?\s*([\d,]+\.?\d*)/gi);
-                    for (const match of qpMatches) {
-                        if (qpValues.length < 3) {
-                            qpValues.push(match[1]);
-                        }
-                    }
-                }
-                
-                // 补充缺失的值
-                while (qpValues.length < 3) {
-                    qpValues.push('N/A');
-                }
                 
                 // 存储提取的数据
                 extractedData.push({
                     index: index + 1,
                     itemName: itemName,
-                    mrkt: mrkt,
-                    qp1: qpValues[0],
-                    qp2: qpValues[1],
-                    qp3: qpValues[2]
+                    mrkt: mrkt
                 });
                 
-                console.log(`元素 ${index + 1}:`, { itemName, mrkt, qpValues });
+                console.log(`元素 ${index + 1}:`, { itemName, mrkt });
             } catch (error) {
                 console.error(`处理元素 ${index + 1} 时出错:`, error);
             }
@@ -285,9 +256,6 @@
                 <tr>
                     <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">物品</th>
                     <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Mrkt</th>
-                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Q P 1</th>
-                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Q P 2</th>
-                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Q P 3</th>
                 </tr>
             `;
             table.appendChild(thead);
@@ -299,9 +267,6 @@
                 row.innerHTML = `
                     <td style="border: 1px solid #ddd; padding: 8px;">${item.itemName}</td>
                     <td style="border: 1px solid #ddd; padding: 8px;">${item.mrkt}</td>
-                    <td style="border: 1px solid #ddd; padding: 8px;">${item.qp1}</td>
-                    <td style="border: 1px solid #ddd; padding: 8px;">${item.qp2}</td>
-                    <td style="border: 1px solid #ddd; padding: 8px;">${item.qp3}</td>
                 `;
                 tbody.appendChild(row);
             });
