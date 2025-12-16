@@ -503,11 +503,9 @@
                 const row = document.createElement('tr');
                 row.style.cssText = `
                     border-bottom: 1px solid #eee;
-                    transition: background-color 0.2s ease;
                     ${item.highlight ? 'background-color: #fff3cd;' : ''}
                 `;
-                row.onmouseover = () => row.style.backgroundColor = '#f8f9fa';
-                row.onmouseout = () => row.style.backgroundColor = item.highlight ? '#fff3cd' : 'transparent';
+                row.classList.add('data-row');
                 
                 const profitColor = getProfitColor(item.profit);
                 const profitRate = item.profitRate ? `${item.profitRate}%` : 'N/A';
@@ -540,7 +538,7 @@
             `;
             
             const refreshButton = document.createElement('button');
-            refreshButton.textContent = '🔄 刷新数据';
+            refreshButton.textContent = '📊 计算逻辑说明';
             refreshButton.style.cssText = `
                 padding: 10px 20px;
                 background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -554,8 +552,7 @@
             refreshButton.onmouseover = () => refreshButton.style.transform = 'scale(1.05)';
             refreshButton.onmouseout = () => refreshButton.style.transform = 'scale(1)';
             refreshButton.onclick = () => {
-                displayContainer.remove();
-                extractItemData();
+                showCalculationLogic();
             };
             
             footer.appendChild(refreshButton);
@@ -589,60 +586,149 @@
                 box-shadow: 0 8px 32px rgba(0,0,0,0.1);
                 backdrop-filter: blur(10px);
             `;
-            // 使面板可拖动
-            makeDraggable(displayContainer);
             document.body.appendChild(displayContainer);
         }
+        
+        // 添加CSS样式来处理表格行的悬停效果
+        const style = document.createElement('style');
+        style.textContent = `
+            .data-row:hover {
+                background-color: #f8f9fa !important;
+            }
+        `;
+        document.head.appendChild(style);
     }
     
-    
-    // 使元素可拖动
-    function makeDraggable(element) {
-        let isDragging = false;
-        let currentX;
-        let currentY;
-        let initialX;
-        let initialY;
-        let xOffset = 0;
-        let yOffset = 0;
+    // 显示计算逻辑说明的函数
+    function showCalculationLogic() {
+        // 检查是否已存在说明面板
+        const existingPanel = document.getElementById('calculation-logic-panel');
+        if (existingPanel) {
+            existingPanel.remove();
+            return;
+        }
 
-        element.style.cursor = 'move';
-        
-        element.addEventListener('mousedown', dragStart);
-        document.addEventListener('mousemove', drag);
-        document.addEventListener('mouseup', dragEnd);
+        const panel = document.createElement('div');
+        panel.id = 'calculation-logic-panel';
+        panel.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border: 2px solid #333;
+            border-radius: 12px;
+            padding: 25px;
+            z-index: 10002;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+        `;
 
-        function dragStart(e) {
-            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
+        panel.innerHTML = `
+            <h2 style="margin: 0 0 20px 0; color: #333; text-align: center; font-size: 24px;">📊 商品数据分析计算逻辑说明</h2>
             
-            initialX = e.clientX - xOffset;
-            initialY = e.clientY - yOffset;
+            <div style="margin-bottom: 20px;">
+                <h3 style="color: #667eea; margin-bottom: 10px;">🎯 脚本功能概述</h3>
+                <p style="line-height: 1.6; color: #555;">
+                    本脚本用于自动分析 w3b 网站上的商品数据，识别低于设定价格且利润达到指定阈值的商品，
+                    并通过高亮显示和数据表格的形式展示分析结果。
+                </p>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <h3 style="color: #667eea; margin-bottom: 10px;">⚙️ 当前配置参数</h3>
+                <ul style="line-height: 1.8; color: #555; padding-left: 20px;">
+                    <li><strong>最小利润阈值：</strong> $${CONFIG.minProfit.toLocaleString()}</li>
+                    <li><strong>最大价格限制：</strong> $${CONFIG.maxPrice.toLocaleString()}</li>
+                    <li><strong>高亮颜色：</strong> ${CONFIG.highlightColor}</li>
+                </ul>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <h3 style="color: #667eea; margin-bottom: 10px;">📈 核心计算逻辑</h3>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <h4 style="color: #333; margin-bottom: 8px;">1. 价差计算</h4>
+                    <p style="margin: 0; font-family: monospace; color: #2196f3;">
+                        价差 = 市场价格 (Mrkt) - 商品价格 (Price)
+                    </p>
+                </div>
+                
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <h4 style="color: #333; margin-bottom: 8px;">2. 总收益计算</h4>
+                    <p style="margin: 0; font-family: monospace; color: #4caf50;">
+                        总收益 = 价差 × 商品数量 (Quantity)
+                    </p>
+                </div>
+                
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <h4 style="color: #333; margin-bottom: 8px;">3. 利润率计算</h4>
+                    <p style="margin: 0; font-family: monospace; color: #ff9800;">
+                        利润率 = (市场价格 - 商品价格) / 市场价格 × 100%
+                    </p>
+                </div>
+                
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                    <h4 style="color: #333; margin-bottom: 8px;">4. 高亮条件判断</h4>
+                    <p style="margin: 0; font-family: monospace; color: #9c27b0;">
+                        高亮显示 = (总收益 ≥ 最小利润阈值) AND (商品价格 ≤ 最大价格限制)
+                    </p>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <h3 style="color: #667eea; margin-bottom: 10px;">🔍 数据提取流程</h3>
+                <ol style="line-height: 1.8; color: #555; padding-left: 20px;">
+                    <li>扫描页面中所有符合 <code>.border.rounded-lg.p-2.overflow-auto</code> CSS 类的商品卡片</li>
+                    <li>从每个商品卡片中提取：
+                        <ul style="margin-top: 5px; padding-left: 20px;">
+                            <li>商品名称 (从 title 属性或文本内容中获取)</li>
+                            <li>市场价格 (Mrkt)</li>
+                            <li>卖家ID、商品数量、价格和利润信息</li>
+                        </ul>
+                    </li>
+                    <li>计算价差、总收益和利润率</li>
+                    <li>根据配置参数判断是否需要高亮显示</li>
+                    <li>将所有数据整理成表格形式展示</li>
+                </ol>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <h3 style="color: #667eea; margin-bottom: 10px;">🎨 颜色标识说明</h3>
+                <ul style="line-height: 1.8; color: #555; padding-left: 20px;">
+                    <li><span style="display: inline-block; width: 15px; height: 15px; background: ${CONFIG.profitColor}; margin-right: 8px; border-radius: 3px;"></span>绿色：表示盈利（利润为正数）</li>
+                    <li><span style="display: inline-block; width: 15px; height: 15px; background: ${CONFIG.lossColor}; margin-right: 8px; border-radius: 3px;"></span>红色：表示亏损（利润为负数）</li>
+                    <li><span style="display: inline-block; width: 15px; height: 15px; background: ${CONFIG.highlightColor}; margin-right: 8px; border-radius: 3px;"></span>黄色：表示符合高亮条件的商品</li>
+                </ul>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <h3 style="color: #667eea; margin-bottom: 10px;">💡 使用提示</h3>
+                <ul style="line-height: 1.8; color: #555; padding-left: 20px;">
+                    <li>点击页面右上角的 ⚙️ 按钮可以调整最小利润和最大价格参数</li>
+                    <li>符合高亮条件的商品会在原页面中以黄色背景显示</li>
+                    <li>数据表格会实时显示所有商品的详细分析结果</li>
+                    <li>点击表格中的 − 按钮可以折叠/展开数据表格</li>
+                </ul>
+            </div>
+            
+            <div style="text-align: center; margin-top: 25px;">
+                <button onclick="this.parentElement.parentElement.remove()" style="
+                    padding: 10px 25px;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    border: none;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-weight: 600;
+                    font-size: 16px;
+                ">关闭说明</button>
+            </div>
+        `;
 
-            if (e.target === element || e.target.parentElement === element) {
-                isDragging = true;
-            }
-        }
-
-        function drag(e) {
-            if (isDragging) {
-                e.preventDefault();
-                currentX = e.clientX - initialX;
-                currentY = e.clientY - initialY;
-
-                xOffset = currentX;
-                yOffset = currentY;
-
-                element.style.transform = `translate(${currentX}px, ${currentY}px)`;
-                element.style.left = '10px';
-                element.style.top = '10px';
-            }
-        }
-
-        function dragEnd(e) {
-            initialX = currentX;
-            initialY = currentY;
-            isDragging = false;
-        }
+        document.body.appendChild(panel);
     }
     
     // 页面加载完成后立即执行一次
