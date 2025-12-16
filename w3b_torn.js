@@ -13,19 +13,57 @@
 (function() {
     'use strict';
 
-    // 全局样式配置
-    const CONFIG = {
-        minProfit: 5000,
-        minProfitRate: 4, // 最小利润率阈值（百分比）
-        specificItems: 'Xanax,810000', // 特定品种提醒参数，格式：[物品1,价格;物品2,价格]
-        highlightColor: '#ffeb3b',
-        lightHighlightColor: '#fff9c4', // 浅黄色，用于重复数据
-        profitColor: '#4caf50',
-        lossColor: '#f44336'
-    };
-
     // 存储上一次的数据状态，用于检测重复
     let previousDataState = null;
+
+    // 从本地存储加载配置
+    function loadConfig() {
+        try {
+            const savedConfig = localStorage.getItem('w3b_torn_config');
+            if (savedConfig) {
+                const parsed = JSON.parse(savedConfig);
+                return {
+                    minProfit: parsed.minProfit || 5000,
+                    minProfitRate: parsed.minProfitRate || 4,
+                    specificItems: parsed.specificItems || 'Xanax,810000',
+                    highlightColor: '#ffeb3b',
+                    lightHighlightColor: '#fff9c4',
+                    profitColor: '#4caf50',
+                    lossColor: '#f44336'
+                };
+            }
+        } catch (error) {
+            console.error('加载配置时出错:', error);
+        }
+        
+        // 默认配置
+        return {
+            minProfit: 5000,
+            minProfitRate: 4,
+            specificItems: 'Xanax,810000;Panda Plushie,58000',
+            highlightColor: '#ffeb3b',
+            lightHighlightColor: '#fff9c4',
+            profitColor: '#4caf50',
+            lossColor: '#f44336'
+        };
+    }
+
+    // 保存配置到本地存储
+    function saveConfig() {
+        try {
+            const configToSave = {
+                minProfit: CONFIG.minProfit,
+                minProfitRate: CONFIG.minProfitRate,
+                specificItems: CONFIG.specificItems
+            };
+            localStorage.setItem('w3b_torn_config', JSON.stringify(configToSave));
+        } catch (error) {
+            console.error('保存配置时出错:', error);
+        }
+    }
+
+    // 全局样式配置
+    const CONFIG = loadConfig();
 
     // 创建设置按钮元素
     function createSettingButton() {
@@ -90,23 +128,32 @@
             <div style="margin-bottom: 15px;">
                 <label style="display: block; margin-bottom: 5px; font-weight: bold;">特定品种提醒</label>
                 <textarea id="specificItems" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; resize: vertical; min-height: 60px;">${CONFIG.specificItems}</textarea>
-                <small style="color: #666; font-size: 12px;">格式：[物品1,价格;物品2,价格] 例如：[iPhone,1000;Samsung,800]</small>
+                <small style="color: #666; font-size: 12px;">格式：物品1,价格;物品2,价格 例如：Xanax,810000;Panda Plushie,58000</small>
             </div>
             <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                <button onclick="this.parentElement.parentElement.remove()" style="padding: 8px 16px; border: 1px solid #ddd; border-radius: 4px; background: white; cursor: pointer;">取消</button>
-                <button onclick="saveSettings()" style="padding: 8px 16px; border: none; border-radius: 4px; background: #007bff; color: white; cursor: pointer;">保存</button>
+                <button id="cancelBtn" style="padding: 8px 16px; border: 1px solid #ddd; border-radius: 4px; background: white; cursor: pointer;">取消</button>
+                <button id="saveBtn" style="padding: 8px 16px; border: none; border-radius: 4px; background: #007bff; color: white; cursor: pointer;">保存</button>
             </div>
         `;
 
         document.body.appendChild(panel);
 
-        window.saveSettings = function() {
+        // 使用事件监听器替代内联onclick
+        document.getElementById('cancelBtn').addEventListener('click', function() {
+            panel.remove();
+        });
+
+        document.getElementById('saveBtn').addEventListener('click', function() {
             CONFIG.minProfit = parseFloat(document.getElementById('minProfit').value);
             CONFIG.minProfitRate = parseFloat(document.getElementById('minProfitRate').value) || 0;
             CONFIG.specificItems = document.getElementById('specificItems').value.trim();
+            
+            // 保存配置到本地存储
+            saveConfig();
+            
             panel.remove();
             extractItemData(); // 重新提取并高亮数据
-        };
+        });
     }
     
     // 插入设置按钮到目标位置
@@ -702,22 +749,60 @@
                 const profitColor = getProfitColor(item.profit);
                 const profitRate = item.profitRate ? `${item.profitRate}%` : 'N/A';
                 
+                // 创建单元格
+                const nameCell = document.createElement('td');
+                nameCell.style.cssText = 'padding: 10px 8px; font-weight: 500; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;';
+                nameCell.textContent = item.itemName;
+                
+                const mrktCell = document.createElement('td');
+                mrktCell.style.cssText = 'padding: 10px 8px; text-align: right; color: #666;';
+                mrktCell.textContent = formatNumber(item.mrkt);
+                
+                const idCell = document.createElement('td');
+                idCell.style.cssText = 'padding: 10px 8px; text-align: right; font-family: monospace; font-size: 12px;';
+                
                 // 创建ID单元格，如果是链接则显示为可点击的链接
-                let idCellContent = item.topriceId;
                 if (item.topriceLink && item.topriceLink !== 'N/A') {
-                    idCellContent = `<a href="${item.topriceLink}" target="_blank" style="color: #007bff; text-decoration: none; font-family: monospace; font-size: 12px;">${item.topriceId}</a>`;
+                    const link = document.createElement('a');
+                    link.href = item.topriceLink;
+                    link.target = '_blank';
+                    link.style.cssText = 'color: #007bff; text-decoration: none; font-family: monospace; font-size: 12px;';
+                    link.textContent = item.topriceId;
+                    idCell.appendChild(link);
+                } else {
+                    idCell.textContent = item.topriceId;
                 }
                 
-                row.innerHTML = `
-                    <td style="padding: 10px 8px; font-weight: 500; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.itemName}</td>
-                    <td style="padding: 10px 8px; text-align: right; color: #666;">${formatNumber(item.mrkt)}</td>
-                    <td style="padding: 10px 8px; text-align: right; font-family: monospace; font-size: 12px;">${idCellContent}</td>
-                    <td style="padding: 10px 8px; text-align: right;">${formatNumber(item.quantity)}</td>
-                    <td style="padding: 10px 8px; text-align: right; font-weight: 600;">${formatNumber(item.price)}</td>
-                    <td style="padding: 10px 8px; text-align: right; font-weight: 600; color: #2196f3;">${item.priceDiff}</td>
-                    <td style="padding: 10px 8px; text-align: right; font-weight: 600; color: ${profitColor};">${item.profit}</td>
-                    <td style="padding: 10px 8px; text-align: right; font-weight: 600; color: ${profitColor};">${profitRate}</td>
-                `;
+                const quantityCell = document.createElement('td');
+                quantityCell.style.cssText = 'padding: 10px 8px; text-align: right;';
+                quantityCell.textContent = formatNumber(item.quantity);
+                
+                const priceCell = document.createElement('td');
+                priceCell.style.cssText = 'padding: 10px 8px; text-align: right; font-weight: 600;';
+                priceCell.textContent = formatNumber(item.price);
+                
+                const priceDiffCell = document.createElement('td');
+                priceDiffCell.style.cssText = 'padding: 10px 8px; text-align: right; font-weight: 600; color: #2196f3;';
+                priceDiffCell.textContent = item.priceDiff;
+                
+                const profitCell = document.createElement('td');
+                profitCell.style.cssText = `padding: 10px 8px; text-align: right; font-weight: 600; color: ${profitColor};`;
+                profitCell.textContent = item.profit;
+                
+                const profitRateCell = document.createElement('td');
+                profitRateCell.style.cssText = `padding: 10px 8px; text-align: right; font-weight: 600; color: ${profitColor};`;
+                profitRateCell.textContent = profitRate;
+                
+                // 添加所有单元格到行
+                row.appendChild(nameCell);
+                row.appendChild(mrktCell);
+                row.appendChild(idCell);
+                row.appendChild(quantityCell);
+                row.appendChild(priceCell);
+                row.appendChild(priceDiffCell);
+                row.appendChild(profitCell);
+                row.appendChild(profitRateCell);
+                
                 tbody.appendChild(row);
             });
             table.appendChild(tbody);
