@@ -169,12 +169,13 @@
     }
 
     // 计算利润率
-    function calculateProfitRate(price, profit) {
-        // 根据价格和利润计算利润率百分比
-        if (!price || !profit || price === 'N/A' || profit === 'N/A') return 0;
+    function calculateProfitRate(mrkt, price) {
+        // 根据市场价格和价格计算利润率百分比：(mrkt - 价格) / mrkt * 100
+        if (!mrkt || !price || mrkt === 'N/A' || price === 'N/A') return 0;
+        const m = parseFloat(mrkt.replace(/,/g, ''));
         const p = parseFloat(price.replace(/,/g, ''));
-        const pr = parseFloat(profit.replace(/[,$+]/g, ''));
-        return (pr / p * 100).toFixed(1);
+        if (m === 0) return 0; // 避免除零错误
+        return ((m - p) / m * 100).toFixed(1);
     }
 
     // 判断是否应该高亮显示
@@ -304,7 +305,7 @@
                     });
                 }
                 
-                const profitRate = calculateProfitRate(top1PriceValue, top1Profit);
+                const profitRate = calculateProfitRate(mrkt, top1PriceValue);
                 const highlight = shouldHighlight(top1PriceValue, top1Profit);
                 
                 extractedData.push({
