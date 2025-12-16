@@ -177,12 +177,18 @@
                 
                 // 提取top价格和数量（在class="space-y-0.5"中class="border rounded px-1.5 py-1"）
                 let topPrice = 'N/A';
+                let top2Price = 'N/A';
                 let quantity = 'N/A';
                 const spaceContainer = element.querySelector('.space-y-0\\.5');
                 if (spaceContainer) {
                     const priceElements = spaceContainer.querySelectorAll('.border.rounded.px-1\\.5.py-1');
-                    // 假设有两个元素，第一个是价格，第二个是数量
-                    if (priceElements.length >= 2) {
+                    // 假设有三个元素，第一个是top1低价信息，第二个是top2低价信息，第三个是数量
+                    if (priceElements.length >= 3) {
+                        topPrice = priceElements[0].textContent.trim();
+                        top2Price = priceElements[1].textContent.trim();
+                        quantity = priceElements[2].textContent.trim();
+                    } else if (priceElements.length === 2) {
+                        // 回退到旧假设：第一个是价格，第二个是数量
                         topPrice = priceElements[0].textContent.trim();
                         quantity = priceElements[1].textContent.trim();
                     } else if (priceElements.length === 1) {
@@ -190,7 +196,11 @@
                         const text = priceElements[0].textContent.trim();
                         // 尝试解析数字
                         const numbers = text.match(/[\d,]+/g);
-                        if (numbers && numbers.length >= 2) {
+                        if (numbers && numbers.length >= 3) {
+                            topPrice = numbers[0];
+                            top2Price = numbers[1];
+                            quantity = numbers[2];
+                        } else if (numbers && numbers.length === 2) {
                             topPrice = numbers[0];
                             quantity = numbers[1];
                         } else if (numbers && numbers.length === 1) {
@@ -205,10 +215,11 @@
                     itemName: itemName,
                     mrkt: mrkt,
                     topPrice: topPrice,
+                    top2Price: top2Price,
                     quantity: quantity
                 });
                 
-                console.log(`元素 ${index + 1}:`, { itemName, mrkt, topPrice, quantity });
+                console.log(`元素 ${index + 1}:`, { itemName, mrkt, topPrice, top2Price, quantity });
             } catch (error) {
                 console.error(`处理元素 ${index + 1} 时出错:`, error);
             }
@@ -283,7 +294,8 @@
                 <tr>
                     <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">物品</th>
                     <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Mrkt</th>
-                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Top价格</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Top1价格</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Top2价格</th>
                     <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">数量</th>
                 </tr>
             `;
@@ -297,6 +309,7 @@
                     <td style="border: 1px solid #ddd; padding: 8px;">${item.itemName}</td>
                     <td style="border: 1px solid #ddd; padding: 8px;">${item.mrkt}</td>
                     <td style="border: 1px solid #ddd; padding: 8px;">${item.topPrice}</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">${item.top2Price}</td>
                     <td style="border: 1px solid #ddd; padding: 8px;">${item.quantity}</td>
                 `;
                 tbody.appendChild(row);
