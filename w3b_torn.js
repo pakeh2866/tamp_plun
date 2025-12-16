@@ -183,7 +183,7 @@
                 if (spaceContainer) {
                     const priceElements = spaceContainer.querySelectorAll('.border.rounded.px-1\\.5.py-1');
                     // 假设有三个元素，第一个是top1低价信息，第二个是top2低价信息，第三个是top2低价信息
-                    console.log('priceElements找到的元素数量:', priceElements.length);
+                    console.log('priceElements找到的元素数量:', priceElements);
                     if (priceElements.length >= 3) {
                         topPrice = priceElements[0].textContent.trim();
                         top2Price = priceElements[1].textContent.trim();
