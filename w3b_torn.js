@@ -183,7 +183,7 @@
         // 根据配置的最小利润和最大价格判断商品是否符合高亮条件
         if (!price || !profit || price === 'N/A' || profit === 'N/A') return false;
         const p = parseFloat(price.replace(/,/g, ''));
-        const pr = parseFloat(profit.replace(/[,$+]/g, ''));
+        const pr = parseFloat(profit.replace(/,/g, ''));
         return pr >= CONFIG.minProfit && p <= CONFIG.maxPrice;
     }
 
@@ -307,16 +307,26 @@
                 
                 // 计算价差
                 let priceDiff = 'N/A';
+                let totalProfit = 'N/A';
                 if (mrkt !== 'N/A' && top1PriceValue !== 'N/A') {
                     const m = parseFloat(mrkt.replace(/,/g, ''));
                     const p = parseFloat(top1PriceValue.replace(/,/g, ''));
                     if (!isNaN(m) && !isNaN(p)) {
-                        priceDiff = (m - p).toLocaleString();
+                        const diff = m - p;
+                        priceDiff = diff.toLocaleString();
+                        
+                        // 计算总收益 = 价差 * 数量
+                        if (top1Quantity !== 'N/A') {
+                            const q = parseFloat(top1Quantity.replace(/,/g, ''));
+                            if (!isNaN(q)) {
+                                totalProfit = (diff * q).toLocaleString();
+                            }
+                        }
                     }
                 }
                 
                 const profitRate = calculateProfitRate(mrkt, top1PriceValue);
-                const highlight = shouldHighlight(top1PriceValue, top1Profit);
+                const highlight = shouldHighlight(top1PriceValue, totalProfit);
                 
                 extractedData.push({
                     index: index + 1,
@@ -328,7 +338,7 @@
                     topriceId: top1Id,
                     quantity: top1Quantity,
                     price: top1PriceValue,
-                    profit: top1Profit,
+                    profit: totalProfit,
                     profitRate,
                     priceDiff,
                     highlight,
