@@ -258,9 +258,9 @@
                 }
                 
                 let topPrice = 'N/A', top2Price = 'N/A', top3Price = 'N/A';
-                let top1Id = 'N/A', top1Quantity = 'N/A', top1PriceValue = 'N/A', top1Profit = 'N/A';
-                let top2Id = 'N/A', top2Quantity = 'N/A', top2PriceValue = 'N/A', top2Profit = 'N/A';
-                let top3Id = 'N/A', top3Quantity = 'N/A', top3PriceValue = 'N/A', top3Profit = 'N/A';
+                let top1Id = 'N/A', top1Quantity = 'N/A', top1PriceValue = 'N/A', top1Profit = 'N/A', top1Link = 'N/A';
+                let top2Id = 'N/A', top2Quantity = 'N/A', top2PriceValue = 'N/A', top2Profit = 'N/A', top2Link = 'N/A';
+                let top3Id = 'N/A', top3Quantity = 'N/A', top3PriceValue = 'N/A', top3Profit = 'N/A', top3Link = 'N/A';
                 
                 const spaceContainer = element.querySelector('.space-y-0\\.5');
                 if (spaceContainer) {
@@ -274,22 +274,32 @@
                             const idText = idEl.textContent.trim();
                             const infoText = infoEl.textContent.trim();
                             
+                            // 获取ID的超链接
+                            let idLink = 'N/A';
+                            const idLinkElement = idEl.querySelector('a');
+                            if (idLinkElement) {
+                                idLink = idLinkElement.href;
+                            }
+                            
                             const qMatch = infoText.match(/Q:\s*([\d,]+)/i);
                             const pMatch = infoText.match(/P:\s*\$?([\d,]+(?:\.\d+)?)/i);
                             const pftMatch = infoText.match(/Pft:\s*([+-]\$?[\d,]+(?:\.\d+)?)/i);
                             
                             if (idx === 0) {
                                 top1Id = idText;
+                                top1Link = idLink;
                                 top1Quantity = qMatch ? qMatch[1] : 'N/A';
                                 top1PriceValue = pMatch ? pMatch[1] : 'N/A';
                                 top1Profit = pftMatch ? pftMatch[1] : 'N/A';
                             } else if (idx === 1) {
                                 top2Id = idText;
+                                top2Link = idLink;
                                 top2Quantity = qMatch ? qMatch[1] : 'N/A';
                                 top2PriceValue = pMatch ? pMatch[1] : 'N/A';
                                 top2Profit = pftMatch ? pftMatch[1] : 'N/A';
                             } else if (idx === 2) {
                                 top3Id = idText;
+                                top3Link = idLink;
                                 top3Quantity = qMatch ? qMatch[1] : 'N/A';
                                 top3PriceValue = pMatch ? pMatch[1] : 'N/A';
                                 top3Profit = pftMatch ? pftMatch[1] : 'N/A';
@@ -329,6 +339,7 @@
                     top2Price,
                     top3Price,
                     topriceId: top1Id,
+                    topriceLink: top1Link,
                     quantity: top1Quantity,
                     price: top1PriceValue,
                     profit: totalProfit,
@@ -336,14 +347,17 @@
                     priceDiff,
                     highlight,
                     top1Id,
+                    top1Link,
                     top1Quantity,
                     top1PriceValue,
                     top1Profit,
                     top2Id,
+                    top2Link,
                     top2Quantity,
                     top2PriceValue,
                     top2Profit,
                     top3Id,
+                    top3Link,
                     top3Quantity,
                     top3PriceValue,
                     top3Profit
@@ -503,10 +517,16 @@
                 const profitColor = getProfitColor(item.profit);
                 const profitRate = item.profitRate ? `${item.profitRate}%` : 'N/A';
                 
+                // 创建ID单元格，如果是链接则显示为可点击的链接
+                let idCellContent = item.topriceId;
+                if (item.topriceLink && item.topriceLink !== 'N/A') {
+                    idCellContent = `<a href="${item.topriceLink}" target="_blank" style="color: #007bff; text-decoration: none; font-family: monospace; font-size: 12px;">${item.topriceId}</a>`;
+                }
+                
                 row.innerHTML = `
                     <td style="padding: 10px 8px; font-weight: 500; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.itemName}</td>
                     <td style="padding: 10px 8px; text-align: right; color: #666;">${formatNumber(item.mrkt)}</td>
-                    <td style="padding: 10px 8px; text-align: right; font-family: monospace; font-size: 12px;">${item.topriceId}</td>
+                    <td style="padding: 10px 8px; text-align: right; font-family: monospace; font-size: 12px;">${idCellContent}</td>
                     <td style="padding: 10px 8px; text-align: right;">${formatNumber(item.quantity)}</td>
                     <td style="padding: 10px 8px; text-align: right; font-weight: 600;">${formatNumber(item.price)}</td>
                     <td style="padding: 10px 8px; text-align: right; font-weight: 600; color: #2196f3;">${item.priceDiff}</td>
