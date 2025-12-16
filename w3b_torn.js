@@ -179,10 +179,9 @@
                 let topPrice = 'N/A';
                 let top2Price = 'N/A';
                 let top3Price = 'N/A';
-                let topriceId = 'N/A';
-                let quantity = 'N/A';
-                let price = 'N/A';
-                let profit = 'N/A';
+                let top1Id = 'N/A', top1Quantity = 'N/A', top1PriceValue = 'N/A', top1Profit = 'N/A';
+                let top2Id = 'N/A', top2Quantity = 'N/A', top2PriceValue = 'N/A', top2Profit = 'N/A';
+                let top3Id = 'N/A', top3Quantity = 'N/A', top3PriceValue = 'N/A', top3Profit = 'N/A';
                 const spaceContainer = element.querySelector('.space-y-0\\.5');
                 if (spaceContainer) {
                     const priceElements = spaceContainer.querySelectorAll('.border.rounded.px-1\\.5.py-1');
@@ -204,16 +203,26 @@
                             const qMatch = infoText.match(/Q:\s*([\d,]+)/i);
                             const pMatch = infoText.match(/P:\s*\$?([\d,]+(?:\.\d+)?)/i);
                             const pftMatch = infoText.match(/Pft:\s*([+-]\$?[\d,]+(?:\.\d+)?)/i);
+                            // 根据索引分配变量
                             if (idx === 0) {
-                                topriceId = idText;
-                                if (qMatch) quantity = qMatch[1];
-                                if (pMatch) price = pMatch[1];
-                                if (pftMatch) profit = pftMatch[1];
+                                top1Id = idText;
+                                if (qMatch) top1Quantity = qMatch[1];
+                                if (pMatch) top1PriceValue = pMatch[1];
+                                if (pftMatch) top1Profit = pftMatch[1];
+                                topPrice = infoText; // 原始文本
+                            } else if (idx === 1) {
+                                top2Id = idText;
+                                if (qMatch) top2Quantity = qMatch[1];
+                                if (pMatch) top2PriceValue = pMatch[1];
+                                if (pftMatch) top2Profit = pftMatch[1];
+                                top2Price = infoText;
+                            } else if (idx === 2) {
+                                top3Id = idText;
+                                if (qMatch) top3Quantity = qMatch[1];
+                                if (pMatch) top3PriceValue = pMatch[1];
+                                if (pftMatch) top3Profit = pftMatch[1];
+                                top3Price = infoText;
                             }
-                            // 将原始文本存储到topPrice, top2Price, top3Price（兼容旧显示）
-                            if (idx === 0) topPrice = infoText;
-                            else if (idx === 1) top2Price = infoText;
-                            else if (idx === 2) top3Price = infoText;
                         } else {
                             // 如果没有两个子元素，回退到旧逻辑
                             const text = priceEl.textContent.trim();
@@ -233,13 +242,27 @@
                     topPrice: topPrice,
                     top2Price: top2Price,
                     top3Price: top3Price,
-                    topriceId: topriceId,
-                    quantity: quantity,
-                    price: price,
-                    profit: profit
+                    // 兼容旧字段
+                    topriceId: top1Id,
+                    quantity: top1Quantity,
+                    price: top1PriceValue,
+                    profit: top1Profit,
+                    // 新字段
+                    top1Id,
+                    top1Quantity,
+                    top1PriceValue,
+                    top1Profit,
+                    top2Id,
+                    top2Quantity,
+                    top2PriceValue,
+                    top2Profit,
+                    top3Id,
+                    top3Quantity,
+                    top3PriceValue,
+                    top3Profit
                 });
                 
-                console.log(`元素 ${index + 1}:`, { itemName, mrkt, topPrice, top2Price, top3Price, topriceId, quantity, price, profit });
+                console.log(`元素 ${index + 1}:`, { itemName, mrkt, topPrice, top2Price, top3Price, top1Id, top1Quantity, top1PriceValue, top1Profit, top2Id, top2Quantity, top2PriceValue, top2Profit, top3Id, top3Quantity, top3PriceValue, top3Profit });
             } catch (error) {
                 console.error(`处理元素 ${index + 1} 时出错:`, error);
             }
@@ -269,7 +292,7 @@
             position: fixed;
             top: 10px;
             left: 10px;
-            width: 700px;
+            width: 900px;
             max-height: 80vh;
             background: white;
             border: 2px solid #333;
