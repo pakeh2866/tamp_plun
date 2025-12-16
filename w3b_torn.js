@@ -16,6 +16,8 @@
     // 全局样式配置
     const CONFIG = {
         minProfit: 1000,
+        minProfitRate: 0, // 最小利润率阈值（百分比）
+        specificItems: '', // 特定品种提醒参数，格式：[物品1,价格;物品2,价格]
         highlightColor: '#ffeb3b',
         profitColor: '#4caf50',
         lossColor: '#f44336'
@@ -76,6 +78,16 @@
                 <label style="display: block; margin-bottom: 5px; font-weight: bold;">最小利润: $</label>
                 <input type="number" id="minProfit" value="${CONFIG.minProfit}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
             </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">最小利润率: %</label>
+                <input type="number" id="minProfitRate" value="${CONFIG.minProfitRate}" step="0.1" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <small style="color: #666; font-size: 12px;">当利润率大于此值时进行提醒</small>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">特定品种提醒</label>
+                <textarea id="specificItems" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; resize: vertical; min-height: 60px;">${CONFIG.specificItems}</textarea>
+                <small style="color: #666; font-size: 12px;">格式：[物品1,价格;物品2,价格] 例如：[iPhone,1000;Samsung,800]</small>
+            </div>
             <div style="display: flex; gap: 10px; justify-content: flex-end;">
                 <button onclick="this.parentElement.parentElement.remove()" style="padding: 8px 16px; border: 1px solid #ddd; border-radius: 4px; background: white; cursor: pointer;">取消</button>
                 <button onclick="saveSettings()" style="padding: 8px 16px; border: none; border-radius: 4px; background: #007bff; color: white; cursor: pointer;">保存</button>
@@ -86,6 +98,8 @@
 
         window.saveSettings = function() {
             CONFIG.minProfit = parseFloat(document.getElementById('minProfit').value);
+            CONFIG.minProfitRate = parseFloat(document.getElementById('minProfitRate').value) || 0;
+            CONFIG.specificItems = document.getElementById('specificItems').value.trim();
             panel.remove();
             extractItemData(); // 重新提取并高亮数据
         };
@@ -172,12 +186,62 @@
         return ((m - p) / m * 100).toFixed(1);
     }
 
+    // 解析特定品种参数
+    function parseSpecificItems(specificItemsStr) {
+        if (!specificItemsStr || specificItemsStr.trim() === '') return [];
+        
+        try {
+            // 移除方括号并按分号分割
+            const content = specificItemsStr.replace(/^\[|\]$/g, '');
+            const items = content.split(';');
+            
+            const result = [];
+            items.forEach(item => {
+                const parts = item.split(',');
+                if (parts.length === 2) {
+                    const name = parts[0].trim();
+                    const price = parseFloat(parts[1].trim());
+                    if (name && !isNaN(price)) {
+                        result.push({ name, price });
+                    }
+                }
+            });
+            
+            return result;
+        } catch (error) {
+            console.error('解析特定品种参数时出错:', error);
+            return [];
+        }
+    }
+
     // 判断是否应该高亮显示
-    function shouldHighlight(price, profit) {
-        // 根据配置的最小利润判断商品是否符合高亮条件
+    function shouldHighlight(price, profit, profitRate, itemName) {
+        // 根据配置的最小利润、利润率和特定品种判断商品是否符合高亮条件
         if (!price || !profit || price === 'N/A' || profit === 'N/A') return false;
+        
         const pr = parseFloat(profit.replace(/,/g, ''));
-        return pr >= CONFIG.minProfit;
+        const prRate = parseFloat(profitRate) || 0;
+        
+        // 检查最小利润条件
+        if (pr >= CONFIG.minProfit) return true;
+        
+        // 检查最小利润率条件
+        if (CONFIG.minProfitRate > 0 && prRate >= CONFIG.minProfitRate) return true;
+        
+        // 检查特定品种条件
+        if (CONFIG.specificItems && itemName && itemName !== 'N/A') {
+            const specificItemsList = parseSpecificItems(CONFIG.specificItems);
+            for (const item of specificItemsList) {
+                if (itemName.toLowerCase().includes(item.name.toLowerCase())) {
+                    const itemPrice = parseFloat(price.replace(/,/g, ''));
+                    if (!isNaN(itemPrice) && itemPrice <= item.price) {
+                        return true;
+                    }
+                }
+            }
+        }
+        
+        return false;
     }
 
     // 获取收益颜色
@@ -329,7 +393,7 @@
                 }
                 
                 const profitRate = calculateProfitRate(mrkt, top1PriceValue);
-                const highlight = shouldHighlight(top1PriceValue, totalProfit);
+                const highlight = shouldHighlight(top1PriceValue, totalProfit, profitRate, itemName);
                 
                 extractedData.push({
                     index: index + 1,
@@ -655,6 +719,8 @@
                 <h3 style="color: #667eea; margin-bottom: 10px;">⚙️ 当前配置参数</h3>
                 <ul style="line-height: 1.8; color: #555; padding-left: 20px;">
                     <li><strong>最小利润阈值：</strong> $${CONFIG.minProfit.toLocaleString()}</li>
+                    <li><strong>最小利润率阈值：</strong> ${CONFIG.minProfitRate}%</li>
+                    <li><strong>特定品种提醒：</strong> ${CONFIG.specificItems || '未设置'}</li>
                     <li><strong>高亮颜色：</strong> ${CONFIG.highlightColor}</li>
                 </ul>
             </div>
@@ -685,7 +751,7 @@
                 <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
                     <h4 style="color: #333; margin-bottom: 8px;">4. 高亮条件判断</h4>
                     <p style="margin: 0; font-family: monospace; color: #9c27b0;">
-                        高亮显示 = (总收益 ≥ 最小利润阈值)
+                        高亮显示 = (总收益 ≥ 最小利润阈值) OR (利润率 ≥ 最小利润率阈值) OR (特定品种价格 ≤ 设定价格)
                     </p>
                 </div>
             </div>
@@ -719,8 +785,9 @@
             <div style="margin-bottom: 20px;">
                 <h3 style="color: #667eea; margin-bottom: 10px;">💡 使用提示</h3>
                 <ul style="line-height: 1.8; color: #555; padding-left: 20px;">
-                    <li>点击页面右上角的 ⚙️ 按钮可以调整最小利润参数</li>
-                    <li>符合高亮条件的商品会在原页面中以黄色背景显示</li>
+                    <li>点击页面右上角的 ⚙️ 按钮可以调整最小利润、利润率和特定品种参数</li>
+                    <li>符合任意高亮条件的商品会在原页面中以黄色背景显示</li>
+                    <li>特定品种支持模糊匹配，输入物品名称的部分关键词即可</li>
                     <li>数据表格会实时显示所有商品的详细分析结果</li>
                     <li>点击表格中的 − 按钮可以折叠/展开数据表格</li>
                 </ul>
