@@ -427,11 +427,7 @@
                     top3Profit
                 });
                 
-                // 高亮符合条件的商品卡片
-                if (highlight) {
-                    element.style.backgroundColor = CONFIG.highlightColor;
-                    element.style.transition = 'background-color 0.3s ease';
-                }
+
                 
             } catch (error) {
                 console.error(`处理元素 ${index + 1} 时出错:`, error);
