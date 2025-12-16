@@ -356,19 +356,18 @@
             existingDisplay.remove();
         }
         
+        // 查找目标容器元素
+        const targetContainer = document.querySelector('.max-w-7xl.mx-auto.py-6.px-3.sm\\:px-5');
+        
         const displayContainer = document.createElement('div');
         displayContainer.id = 'item-data-display';
         displayContainer.style.cssText = `
-            position: fixed;
-            bottom: 10px;
-            left: 10px;
-            width: 1100px;
-            max-height: 85vh;
+            width: 100%;
+            margin-top: 20px;
             background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
             border: 1px solid #ddd;
             border-radius: 12px;
             padding: 20px;
-            z-index: 10000;
             font-family: 'Arial', sans-serif;
             overflow: hidden;
             box-shadow: 0 8px 32px rgba(0,0,0,0.1);
@@ -551,10 +550,31 @@
             displayContainer.appendChild(noData);
         }
         
-        // 使面板可拖动
-        makeDraggable(displayContainer);
-        
-        document.body.appendChild(displayContainer);
+        // 如果找到目标容器，则插入到其中；否则添加到body
+        if (targetContainer) {
+            targetContainer.appendChild(displayContainer);
+        } else {
+            // 回退到原来的固定位置显示
+            displayContainer.style.cssText = `
+                position: fixed;
+                bottom: 10px;
+                left: 10px;
+                width: 1100px;
+                max-height: 85vh;
+                background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+                border: 1px solid #ddd;
+                border-radius: 12px;
+                padding: 20px;
+                z-index: 10000;
+                font-family: 'Arial', sans-serif;
+                overflow: hidden;
+                box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+                backdrop-filter: blur(10px);
+            `;
+            // 使面板可拖动
+            makeDraggable(displayContainer);
+            document.body.appendChild(displayContainer);
+        }
     }
     
     
