@@ -122,11 +122,24 @@
         // 遍历每个元素
         elements.forEach((element, index) => {
             try {
-                // 提取物品名称（在具有flex-1 min-w-0类的元素中）
+                // 提取物品名称（在具有flex-1 min-w-0类的元素中，取里面的title属性或元素）
                 let itemName = 'N/A';
-                const nameElement = element.querySelector('.flex-1.min-w-0');
-                if (nameElement) {
-                    itemName = nameElement.textContent.trim();
+                const nameContainer = element.querySelector('.flex-1.min-w-0');
+                if (nameContainer) {
+                    // 首先尝试获取title属性
+                    const titleElement = nameContainer.querySelector('[title]');
+                    if (titleElement && titleElement.getAttribute('title')) {
+                        itemName = titleElement.getAttribute('title').trim();
+                    } else {
+                        // 如果没有title属性，尝试获取具有特定类名的元素
+                        const nameElement = nameContainer.querySelector('.item-name, .name, h3, h4, span');
+                        if (nameElement) {
+                            itemName = nameElement.textContent.trim();
+                        } else {
+                            // 最后使用容器的文本内容
+                            itemName = nameContainer.textContent.trim();
+                        }
+                    }
                 }
                 
                 // 提取Mrkt值（假设在带有"data-mrkt"属性的元素中或特定格式的文本中）
