@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         自动高亮低价商品
+// @name         wear[w3b]自动高亮低价商品
 // @namespace    https://github.com/pakeh2866
 // @version      0.2
-// @description  w3b中低于某个价格，利润在x%以上的高亮显示
-// @author       pakeh
+// @description  w3b中低于某个价格，利润在x%以上的高亮显示,并提醒
+// @author       pakeh[3973672]
 // @match        https://weav3r.dev/favorites
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=centurygames.cn
 // @grant        GM_notification
@@ -768,8 +768,26 @@
                     const link = document.createElement('a');
                     link.href = item.topriceLink;
                     link.target = '_blank';
-                    link.style.cssText = 'color: #007bff; text-decoration: none; font-family: monospace; font-size: 12px;';
+                    link.style.cssText = 'color: #007bff; text-decoration: underline; cursor: pointer; font-family: monospace; font-size: 12px; display: inline-block;';
                     link.textContent = item.topriceId;
+                    
+                    // 添加点击事件处理，确保链接能够正常打开
+                    link.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        window.open(item.topriceLink, '_blank');
+                    });
+                    
+                    // 添加悬停效果
+                    link.addEventListener('mouseenter', function() {
+                        this.style.color = '#0056b3';
+                        this.style.textDecoration = 'underline';
+                    });
+                    
+                    link.addEventListener('mouseleave', function() {
+                        this.style.color = '#007bff';
+                        this.style.textDecoration = 'underline';
+                    });
+                    
                     idCell.appendChild(link);
                 } else {
                     idCell.textContent = item.topriceId;
