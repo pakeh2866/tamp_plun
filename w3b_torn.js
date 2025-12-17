@@ -26,6 +26,10 @@
                     minProfit: parsed.minProfit || 5000,
                     minProfitRate: parsed.minProfitRate || 4,
                     specificItems: parsed.specificItems || 'Xanax,810000',
+                    // 条件选项：0=关闭，1=必须满足，2=只要满足就提醒
+                    minProfitOption: parsed.minProfitOption || 2,
+                    minProfitRateOption: parsed.minProfitRateOption || 2,
+                    specificItemsOption: parsed.specificItemsOption || 2,
                     highlightColor: '#ffeb3b',
                     lightHighlightColor: '#fff9c4',
                     profitColor: '#4caf50',
@@ -41,6 +45,10 @@
             minProfit: 5000,
             minProfitRate: 4,
             specificItems: 'Xanax,810000;Panda Plushie,58000',
+            // 条件选项：0=关闭，1=必须满足，2=只要满足就提醒
+            minProfitOption: 2,
+            minProfitRateOption: 2,
+            specificItemsOption: 2,
             highlightColor: '#ffeb3b',
             lightHighlightColor: '#fff9c4',
             profitColor: '#4caf50',
@@ -54,7 +62,10 @@
             const configToSave = {
                 minProfit: CONFIG.minProfit,
                 minProfitRate: CONFIG.minProfitRate,
-                specificItems: CONFIG.specificItems
+                specificItems: CONFIG.specificItems,
+                minProfitOption: CONFIG.minProfitOption,
+                minProfitRateOption: CONFIG.minProfitRateOption,
+                specificItemsOption: CONFIG.specificItemsOption
             };
             localStorage.setItem('w3b_torn_config', JSON.stringify(configToSave));
         } catch (error) {
@@ -111,25 +122,60 @@
             z-index: 10001;
             box-shadow: 0 8px 32px rgba(0,0,0,0.3);
             font-family: Arial, sans-serif;
-            min-width: 300px;
+            min-width: 400px;
+            max-width: 500px;
         `;
 
         panel.innerHTML = `
             <h3 style="margin: 0 0 15px 0; color: #333;">设置参数</h3>
+            
+            <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                <h4 style="margin: 0 0 10px 0; color: #666; font-size: 14px;">条件选项说明</h4>
+                <p style="margin: 0; font-size: 12px; color: #666; line-height: 1.4;">
+                    <strong>关闭</strong>：不使用此条件<br>
+                    <strong>必须满足</strong>：必须满足此条件才会提醒<br>
+                    <strong>只要满足就提醒</strong>：满足此条件即可提醒
+                </p>
+            </div>
+            
             <div style="margin-bottom: 15px;">
                 <label style="display: block; margin-bottom: 5px; font-weight: bold;">最小利润: $</label>
                 <input type="number" id="minProfit" value="${CONFIG.minProfit}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <div style="margin-top: 5px;">
+                    <select id="minProfitOption" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="0" ${CONFIG.minProfitOption === 0 ? 'selected' : ''}>关闭</option>
+                        <option value="1" ${CONFIG.minProfitOption === 1 ? 'selected' : ''}>必须满足</option>
+                        <option value="2" ${CONFIG.minProfitOption === 2 ? 'selected' : ''}>只要满足就提醒</option>
+                    </select>
+                </div>
             </div>
+            
             <div style="margin-bottom: 15px;">
                 <label style="display: block; margin-bottom: 5px; font-weight: bold;">最小利润率: %</label>
                 <input type="number" id="minProfitRate" value="${CONFIG.minProfitRate}" step="0.1" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <div style="margin-top: 5px;">
+                    <select id="minProfitRateOption" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="0" ${CONFIG.minProfitRateOption === 0 ? 'selected' : ''}>关闭</option>
+                        <option value="1" ${CONFIG.minProfitRateOption === 1 ? 'selected' : ''}>必须满足</option>
+                        <option value="2" ${CONFIG.minProfitRateOption === 2 ? 'selected' : ''}>只要满足就提醒</option>
+                    </select>
+                </div>
                 <small style="color: #666; font-size: 12px;">当利润率大于此值时进行提醒</small>
             </div>
+            
             <div style="margin-bottom: 15px;">
                 <label style="display: block; margin-bottom: 5px; font-weight: bold;">特定品种提醒</label>
                 <textarea id="specificItems" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; resize: vertical; min-height: 60px;">${CONFIG.specificItems}</textarea>
+                <div style="margin-top: 5px;">
+                    <select id="specificItemsOption" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="0" ${CONFIG.specificItemsOption === 0 ? 'selected' : ''}>关闭</option>
+                        <option value="1" ${CONFIG.specificItemsOption === 1 ? 'selected' : ''}>必须满足</option>
+                        <option value="2" ${CONFIG.specificItemsOption === 2 ? 'selected' : ''}>只要满足就提醒</option>
+                    </select>
+                </div>
                 <small style="color: #666; font-size: 12px;">格式：物品1,价格;物品2,价格 例如：Xanax,810000;Panda Plushie,58000</small>
             </div>
+            
             <div style="display: flex; gap: 10px; justify-content: flex-end;">
                 <button id="cancelBtn" style="padding: 8px 16px; border: 1px solid #ddd; border-radius: 4px; background: white; cursor: pointer;">取消</button>
                 <button id="saveBtn" style="padding: 8px 16px; border: none; border-radius: 4px; background: #007bff; color: white; cursor: pointer;">保存</button>
@@ -147,6 +193,9 @@
             CONFIG.minProfit = parseFloat(document.getElementById('minProfit').value);
             CONFIG.minProfitRate = parseFloat(document.getElementById('minProfitRate').value) || 0;
             CONFIG.specificItems = document.getElementById('specificItems').value.trim();
+            CONFIG.minProfitOption = parseInt(document.getElementById('minProfitOption').value);
+            CONFIG.minProfitRateOption = parseInt(document.getElementById('minProfitRateOption').value);
+            CONFIG.specificItemsOption = parseInt(document.getElementById('specificItemsOption').value);
             
             // 保存配置到本地存储
             saveConfig();
@@ -270,31 +319,77 @@
     // 判断是否应该高亮显示，并返回满足的条件类型
     function shouldHighlight(price, profit, profitRate, itemName) {
         // 根据配置的最小利润、利润率和特定品种判断商品是否符合高亮条件
-        if (!price || !profit || price === 'N/A' || profit === 'N/A') return { highlight: false, reason: '' };
+        if (!price || !profit || price === 'N/A' || profit === 'N/A') return { highlight: false, reasons: [] };
         
         const pr = parseFloat(profit.replace(/,/g, ''));
         const prRate = parseFloat(profitRate) || 0;
         
-        // 检查最小利润条件
-        if (pr >= CONFIG.minProfit) return { highlight: true, reason: '最小利润' };
-        
-        // 检查最小利润率条件
-        if (CONFIG.minProfitRate > 0 && prRate >= CONFIG.minProfitRate) return { highlight: true, reason: '利润率' };
+        // 检查各个条件是否满足
+        const conditions = {
+            minProfit: {
+                enabled: CONFIG.minProfitOption !== 0,
+                required: CONFIG.minProfitOption === 1,
+                satisfied: pr >= CONFIG.minProfit,
+                name: '最小利润'
+            },
+            minProfitRate: {
+                enabled: CONFIG.minProfitRateOption !== 0,
+                required: CONFIG.minProfitRateOption === 1,
+                satisfied: CONFIG.minProfitRate > 0 && prRate >= CONFIG.minProfitRate,
+                name: '利润率'
+            },
+            specificItems: {
+                enabled: CONFIG.specificItemsOption !== 0,
+                required: CONFIG.specificItemsOption === 1,
+                satisfied: false,
+                name: '特定品种'
+            }
+        };
         
         // 检查特定品种条件
-        if (CONFIG.specificItems && itemName && itemName !== 'N/A') {
+        if (conditions.specificItems.enabled && CONFIG.specificItems && itemName && itemName !== 'N/A') {
             const specificItemsList = parseSpecificItems(CONFIG.specificItems);
             for (const item of specificItemsList) {
                 if (itemName.toLowerCase().includes(item.name.toLowerCase())) {
                     const itemPrice = parseFloat(price.replace(/,/g, ''));
                     if (!isNaN(itemPrice) && itemPrice <= item.price) {
-                        return { highlight: true, reason: '特定品种' };
+                        conditions.specificItems.satisfied = true;
+                        break;
                     }
                 }
             }
         }
         
-        return { highlight: false, reason: '' };
+        // 收集所有启用的条件
+        const enabledConditions = Object.values(conditions).filter(c => c.enabled);
+        
+        // 如果没有启用的条件，不高亮
+        if (enabledConditions.length === 0) {
+            return { highlight: false, reasons: [] };
+        }
+        
+        // 检查所有"必须满足"的条件是否都满足
+        const requiredConditions = enabledConditions.filter(c => c.required);
+        const allRequiredSatisfied = requiredConditions.every(c => c.satisfied);
+        
+        // 如果有"必须满足"的条件且不全部满足，不高亮
+        if (requiredConditions.length > 0 && !allRequiredSatisfied) {
+            return { highlight: false, reasons: [] };
+        }
+        
+        // 收集所有满足的条件
+        const satisfiedConditions = enabledConditions.filter(c => c.satisfied);
+        
+        // 如果没有任何条件满足，不高亮
+        if (satisfiedConditions.length === 0) {
+            return { highlight: false, reasons: [] };
+        }
+        
+        // 返回高亮结果和满足的条件名称
+        return {
+            highlight: true,
+            reasons: satisfiedConditions.map(c => c.name)
+        };
     }
 
     // 生成数据状态的唯一标识
@@ -553,7 +648,7 @@
                     profitRate,
                     priceDiff,
                     highlight: highlightResult.highlight,
-                    highlightReason: highlightResult.reason,
+                    highlightReason: highlightResult.reasons ? highlightResult.reasons.join(', ') : '',
                     top1Id,
                     top1Link,
                     top1Quantity,
@@ -1021,9 +1116,12 @@
             <div style="margin-bottom: 20px;">
                 <h3 style="color: #667eea; margin-bottom: 10px;">⚙️ 当前配置参数</h3>
                 <ul style="line-height: 1.8; color: #555; padding-left: 20px;">
-                    <li><strong>最小利润阈值：</strong> $${CONFIG.minProfit.toLocaleString()}</li>
-                    <li><strong>最小利润率阈值：</strong> ${CONFIG.minProfitRate}%</li>
-                    <li><strong>特定品种提醒：</strong> ${CONFIG.specificItems || '未设置'}</li>
+                    <li><strong>最小利润阈值：</strong> $${CONFIG.minProfit.toLocaleString()}
+                        (${CONFIG.minProfitOption === 0 ? '关闭' : CONFIG.minProfitOption === 1 ? '必须满足' : '只要满足就提醒'})</li>
+                    <li><strong>最小利润率阈值：</strong> ${CONFIG.minProfitRate}%
+                        (${CONFIG.minProfitRateOption === 0 ? '关闭' : CONFIG.minProfitRateOption === 1 ? '必须满足' : '只要满足就提醒'})</li>
+                    <li><strong>特定品种提醒：</strong> ${CONFIG.specificItems || '未设置'}
+                        (${CONFIG.specificItemsOption === 0 ? '关闭' : CONFIG.specificItemsOption === 1 ? '必须满足' : '只要满足就提醒'})</li>
                     <li><strong>高亮颜色：</strong> ${CONFIG.highlightColor}</li>
                 </ul>
             </div>
@@ -1054,7 +1152,10 @@
                 <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
                     <h4 style="color: #333; margin-bottom: 8px;">4. 高亮条件判断</h4>
                     <p style="margin: 0; font-family: monospace; color: #9c27b0;">
-                        高亮显示 = (总收益 ≥ 最小利润阈值) OR (利润率 ≥ 最小利润率阈值) OR (特定品种价格 ≤ 设定价格)
+                        高亮显示 = 满足所有"必须满足"的条件 AND 至少满足一个"只要满足就提醒"的条件
+                    </p>
+                    <p style="margin: 10px 0 0 0; font-size: 12px; color: #666;">
+                        每个条件可以设置为：关闭、必须满足、只要满足就提醒
                     </p>
                 </div>
             </div>
@@ -1089,7 +1190,10 @@
                 <h3 style="color: #667eea; margin-bottom: 10px;">💡 使用提示</h3>
                 <ul style="line-height: 1.8; color: #555; padding-left: 20px;">
                     <li>1.点击页面右上角的 ⚙️ 按钮可以调整最小利润、利润率和特定品种参数</li>
-                    <li>符合任意高亮条件的商品会在原页面中以黄色背景显示</li>
+                    <li>每个条件可以单独设置为"关闭"、"必须满足"或"只要满足就提醒"</li>
+                    <li>如果设置了"必须满足"的条件，则必须同时满足所有这些条件才会高亮</li>
+                    <li>如果没有任何"必须满足"的条件，则满足任意一个"只要满足就提醒"的条件即可高亮</li>
+                    <li>符合高亮条件的商品会在原页面中以黄色背景显示</li>
                     <li>特定品种支持模糊匹配，输入物品名称的部分关键词即可</li>
                     <li>数据表格会实时显示所有商品的详细分析结果</li>
                     <li>2.设置好后保持网页不关闭就行，可以最小化。数据会自动刷新，有符合条件的会提醒。</li>
