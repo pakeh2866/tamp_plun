@@ -380,6 +380,14 @@
         // 收集所有满足的条件
         const satisfiedConditions = enabledConditions.filter(c => c.satisfied);
         
+        // 如果有"必须满足"的条件且全部满足，高亮
+        if (requiredConditions.length > 0 && allRequiredSatisfied) {
+            return {
+                highlight: true,
+                reasons: satisfiedConditions.map(c => c.name)
+            };
+        }
+        
         // 如果没有任何条件满足，不高亮
         if (satisfiedConditions.length === 0) {
             return { highlight: false, reasons: [] };
