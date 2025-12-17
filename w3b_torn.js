@@ -424,9 +424,11 @@
                 
                 let mrkt = 'N/A';
                 if (nameContainer) {
-                    const mrktElement = nameContainer.querySelector('.font-semibold');
-                    if (mrktElement) {
-                        mrkt = mrktElement.textContent.trim();
+                    const mrktElements = nameContainer.querySelectorAll('.font-semibold');
+                    if (mrktElements.length >= 2) {
+                        mrkt = mrktElements[1].textContent.trim();
+                    } else if (mrktElements.length === 1) {
+                        mrkt = mrktElements[0].textContent.trim();
                     }
                 }
                 if (mrkt === 'N/A') {
