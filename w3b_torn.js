@@ -203,7 +203,9 @@
         mutations.forEach(function(mutation) {
             if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
                 setTimeout(insertSettingButton, 100);
-                setTimeout(extractItemData, 200);
+                // 防抖处理：避免频繁调用extractItemData导致表格抖动
+                clearTimeout(window.extractDataTimeout);
+                window.extractDataTimeout = setTimeout(extractItemData, 500);
             }
         });
     });
@@ -380,6 +382,14 @@
 
     // 新增功能：查找具有指定CSS类的元素并提取信息
     function extractItemData() {
+        // 防止重复调用导致的抖动
+        if (window.isExtracting) {
+            console.log('数据提取正在进行中，跳过重复调用');
+            return;
+        }
+        
+        window.isExtracting = true;
+        
         // 监听DOM变化并提取页面中的商品数据
         const elementsObserver = new MutationObserver(function(mutations) {
             mutations.forEach(function(mutation) {
@@ -398,6 +408,11 @@
         if (elements.length > 0) {
             processElements(Array.from(elements));
         }
+        
+        // 重置提取标志
+        setTimeout(() => {
+            window.isExtracting = false;
+        }, 1000);
     }
 
     function processElements(elements) {
@@ -606,6 +621,14 @@
     
     // 显示提取数据的函数（优化版）
     function displayExtractedData(data, isDuplicate = false) {
+        // 防止重复创建表格导致抖动
+        if (window.isDisplaying) {
+            console.log('数据展示正在进行中，跳过重复调用');
+            return;
+        }
+        
+        window.isDisplaying = true;
+        
         // 创建一个美观的数据展示面板，以表格形式显示提取的商品数据
         const existingDisplay = document.getElementById('item-data-display');
         if (existingDisplay) {
@@ -705,7 +728,7 @@
         if (data.length > 0) {
             const content = document.createElement('div');
             content.className = 'table-content';
-            content.style.cssText = 'max-height: 120vh; overflow-y: auto;';
+            content.style.cssText = 'max-height: 120vh; overflow-y: auto; position: relative;';
             
             const table = document.createElement('table');
             table.style.cssText = `
@@ -715,6 +738,8 @@
                 border-radius: 8px;
                 overflow: hidden;
                 box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                position: relative;
+                table-layout: fixed;
             `;
             
             const thead = document.createElement('thead');
@@ -748,6 +773,16 @@
                 `;
                 row.classList.add('data-row');
                 
+                // 检查行是否有点击事件监听器可能干扰链接点击
+                row.addEventListener('click', function(e) {
+                    console.log('表格行点击事件触发，目标:', e.target, '目标标签名:', e.target.tagName);
+                });
+                
+                // 检查是否有其他事件干扰
+                row.addEventListener('mousedown', function(e) {
+                    console.log('表格行mousedown事件触发，目标:', e.target, '目标标签名:', e.target.tagName);
+                });
+                
                 const profitColor = getProfitColor(item.profit);
                 const profitRate = item.profitRate ? `${item.profitRate}%` : 'N/A';
                 
@@ -768,14 +803,60 @@
                     const link = document.createElement('a');
                     link.href = item.topriceLink;
                     link.target = '_blank';
-                    link.style.cssText = 'color: #007bff; text-decoration: underline; cursor: pointer; font-family: monospace; font-size: 12px; display: inline-block;';
+                    link.style.cssText = 'color: #007bff; text-decoration: underline; cursor: pointer; font-family: monospace; font-size: 12px; display: inline-block; position: relative; z-index: 10; pointer-events: auto; user-select: none; min-width: 50px; min-height: 20px;';
                     link.textContent = item.topriceId;
                     
                     // 添加点击事件处理，确保链接能够正常打开
                     link.addEventListener('click', function(e) {
+                        console.log('链接点击事件触发:', item.topriceLink);
                         e.preventDefault();
+                        e.stopPropagation();
                         window.open(item.topriceLink, '_blank');
                     });
+                    
+                    // 添加多种事件监听器以确保点击被捕获
+                    link.addEventListener('mousedown', function(e) {
+                        console.log('链接mousedown事件触发:', item.topriceLink, '按钮:', e.button);
+                    });
+                    
+                    link.addEventListener('mouseup', function(e) {
+                        console.log('链接mouseup事件触发:', item.topriceLink, '按钮:', e.button);
+                    });
+                    
+                    // 检查链接是否被其他元素覆盖
+                    link.addEventListener('mouseover', function(e) {
+                        console.log('链接mouseover事件触发，元素可见性:',
+                            window.getComputedStyle(this).visibility,
+                            'display:', window.getComputedStyle(this).display,
+                            'z-index:', window.getComputedStyle(this).zIndex);
+                    });
+                    
+                    // 添加更全面的事件监听
+                    link.addEventListener('dblclick', function(e) {
+                        console.log('链接dblclick事件触发:', item.topriceLink);
+                        e.preventDefault();
+                        e.stopPropagation();
+                        window.open(item.topriceLink, '_blank');
+                    });
+                    
+                    link.addEventListener('contextmenu', function(e) {
+                        console.log('链接contextmenu事件触发:', item.topriceLink);
+                    });
+                    
+                    // 添加全局点击事件监听来检查点击位置
+                    document.addEventListener('click', function globalClickHandler(e) {
+                        const rect = link.getBoundingClientRect();
+                        if (e.clientX >= rect.left && e.clientX <= rect.right &&
+                            e.clientY >= rect.top && e.clientY <= rect.bottom) {
+                            console.log('全局点击事件在链接区域内触发:', item.topriceLink, '目标:', e.target);
+                            // 直接在这里处理链接点击
+                            e.preventDefault();
+                            e.stopPropagation();
+                            window.open(item.topriceLink, '_blank');
+                            // 移除这个全局监听器避免重复触发
+                            document.removeEventListener('click', globalClickHandler, true);
+                        }
+                    }, true); // 使用捕获阶段
                     
                     // 添加悬停效果
                     link.addEventListener('mouseenter', function() {
@@ -892,6 +973,10 @@
             document.body.appendChild(displayContainer);
         }
         
+        // 重置展示标志
+        setTimeout(() => {
+            window.isDisplaying = false;
+        }, 500);
     }
     
     // 显示计算逻辑说明的函数
