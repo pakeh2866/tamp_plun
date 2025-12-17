@@ -3,7 +3,7 @@
 // @namespace    https://github.com/pakeh2866
 // @version      0.2
 // @description  w3b中低于某个价格，利润在x%以上的高亮显示,并提醒
-// @author       pakeh[3973672]
+// @author       pakeh[3973672]  如果觉得好用记得打赏我
 // @match        https://weav3r.dev/favorites
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=centurygames.cn
 // @grant        GM_notification
