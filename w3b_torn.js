@@ -892,14 +892,6 @@
             document.body.appendChild(displayContainer);
         }
         
-        // 添加CSS样式来处理表格行的悬停效果
-        const style = document.createElement('style');
-        style.textContent = `
-            .data-row:hover {
-                background-color: #f8f9fa !important;
-            }
-        `;
-        document.head.appendChild(style);
     }
     
     // 显示计算逻辑说明的函数
