@@ -705,7 +705,7 @@
         if (data.length > 0) {
             const content = document.createElement('div');
             content.className = 'table-content';
-            content.style.cssText = 'max-height: 70vh; overflow-y: auto;';
+            content.style.cssText = 'max-height: 120vh; overflow-y: auto;';
             
             const table = document.createElement('table');
             table.style.cssText = `
