@@ -400,13 +400,75 @@
         };
     }
 
-    // 生成数据状态的唯一标识
+    // 生成数据状态的唯一标识（简化版）
     function generateDataState(data) {
         const highlightedItems = data.filter(item => item.highlight);
-        return highlightedItems.map(item => `${item.topriceId}|${item.price}`).sort().join('||');
+        if (highlightedItems.length === 0) return '';
+        
+        // 找出收益最高的项目
+        const highestProfitItem = highlightedItems.reduce((highest, current) => {
+            const profitCurrent = parseFloat(current.profit.replace(/,/g, '')) || 0;
+            const profitHighest = parseFloat(highest.profit.replace(/,/g, '')) || 0;
+            return profitCurrent > profitHighest ? current : highest;
+        });
+        
+        return `${highestProfitItem.topriceId}|${highestProfitItem.price}|${highestProfitItem.profit}`;
     }
 
-    // 发送批量通知
+    // 发送单个最高收益商品的通知
+    function sendHighestProfitNotification(item) {
+        if (!item) return;
+        
+        const profit = item.profit ? `，收益: $${item.profit}` : '';
+        const notificationText = `${item.itemName} 满足${item.highlightReason}条件${profit}`;
+        
+        if (typeof GM_notification !== 'undefined') {
+            GM_notification({
+                title: '商品提醒',
+                text: notificationText,
+                highlight: true,
+                timeout: 8000,
+                onclick: function() {
+                    // 点击通知时打开对应的链接
+                    if (item.topriceLink && item.topriceLink !== 'N/A') {
+                        window.open(item.topriceLink, '_blank');
+                    }
+                }
+            });
+        } else {
+            // 浏览器原生通知
+            if (Notification.permission === 'granted') {
+                const notification = new Notification('商品提醒', {
+                    body: notificationText,
+                    icon: 'https://www.google.com/s2/favicons?sz=64&domain=centurygames.cn'
+                });
+                
+                // 为原生通知添加点击事件
+                notification.onclick = function() {
+                    if (item.topriceLink && item.topriceLink !== 'N/A') {
+                        window.open(item.topriceLink, '_blank');
+                    }
+                };
+            } else if (Notification.permission !== 'denied') {
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        const notification = new Notification('商品提醒', {
+                            body: notificationText,
+                            icon: 'https://www.google.com/s2/favicons?sz=64&domain=centurygames.cn'
+                        });
+                        
+                        notification.onclick = function() {
+                            if (item.topriceLink && item.topriceLink !== 'N/A') {
+                                window.open(item.topriceLink, '_blank');
+                            }
+                        };
+                    }
+                });
+            }
+        }
+    }
+
+    // 发送批量通知（保留用于兼容性）
     function sendBatchNotification(items) {
         if (items.length === 0) return;
         
@@ -469,11 +531,31 @@
         sendBatchNotification([{ itemName, highlightReason: reason, profit }]);
     }
 
-    // 检查数据是否重复
+    // 检查数据是否重复（简化版）
     function isDataDuplicate(currentData, previousState) {
         if (!previousState) return false;
+        
         const currentState = generateDataState(currentData);
-        return currentState === previousState;
+        
+        // 解析之前的状态
+        let previousHighestProfitItem = null;
+        try {
+            // 尝试解析为JSON（兼容旧格式）
+            const parsedState = JSON.parse(previousState);
+            if (parsedState.state) {
+                // 兼容旧格式
+                previousHighestProfitItem = parsedState.state;
+            } else {
+                // 新格式直接是状态字符串
+                previousHighestProfitItem = previousState;
+            }
+        } catch (error) {
+            // 如果不是JSON格式，直接使用字符串
+            previousHighestProfitItem = previousState;
+        }
+        
+        // 比较当前最高收益商品与之前的是否相同
+        return currentState === previousHighestProfitItem;
     }
 
     // 获取收益颜色
@@ -704,26 +786,12 @@
                     return profitCurrent > profitHighest ? current : highest;
                 });
                 
-                // 检查是否是新增的项目
-                let isNewItem = true;
-                if (previousDataState) {
-                    const previousHighlightedItems = JSON.parse(previousDataState).highlightedItems || [];
-                    const previousItemNames = new Set(previousHighlightedItems.map(item => `${item.itemName}|${item.price}|${item.profit}`));
-                    const itemKey = `${highestProfitItem.itemName}|${highestProfitItem.price}|${highestProfitItem.profit}`;
-                    isNewItem = !previousItemNames.has(itemKey);
-                }
-                
-                // 如果是新增项目或者是第一次运行，发送通知
-                if (isNewItem || !previousDataState) {
-                    sendNotification(highestProfitItem.itemName, highestProfitItem.highlightReason, highestProfitItem.profit);
-                }
+                // 直接发送最高收益商品的通知
+                sendHighestProfitNotification(highestProfitItem);
             }
             
             // 更新数据状态
-            previousDataState = JSON.stringify({
-                state: generateDataState(extractedData),
-                highlightedItems: newHighlightedItems
-            });
+            previousDataState = generateDataState(extractedData);
         }
         
         // 按照收益从高到低排序
