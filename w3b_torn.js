@@ -412,7 +412,8 @@
         
         let notificationText = '';
         if (items.length === 1) {
-            notificationText = `${items[0].itemName} 满足${items[0].highlightReason}条件`;
+            const profit = items[0].profit ? `，收益: $${items[0].profit}` : '';
+            notificationText = `${items[0].itemName} 满足${items[0].highlightReason}条件${profit}`;
         } else {
             // 按条件分组
             const groupedItems = {};
@@ -464,8 +465,8 @@
     }
 
     // 发送单个通知（保留用于兼容性）
-    function sendNotification(itemName, reason) {
-        sendBatchNotification([{ itemName, highlightReason: reason }]);
+    function sendNotification(itemName, reason, profit) {
+        sendBatchNotification([{ itemName, highlightReason: reason, profit }]);
     }
 
     // 检查数据是否重复
@@ -694,22 +695,28 @@
         if (!isDuplicate) {
             const newHighlightedItems = extractedData.filter(item => item.highlight);
             
-            // 如果有上一次数据，比较找出新增的高亮项目
-            if (previousDataState) {
-                const previousHighlightedItems = JSON.parse(previousDataState).highlightedItems || [];
-                const previousItemNames = new Set(previousHighlightedItems.map(item => `${item.itemName}|${item.price}|${item.profit}`));
+            // 如果有高亮项目，只通知收益最高的那个
+            if (newHighlightedItems.length > 0) {
+                // 找出收益最高的项目
+                const highestProfitItem = newHighlightedItems.reduce((highest, current) => {
+                    const profitCurrent = parseFloat(current.profit.replace(/,/g, '')) || 0;
+                    const profitHighest = parseFloat(highest.profit.replace(/,/g, '')) || 0;
+                    return profitCurrent > profitHighest ? current : highest;
+                });
                 
-                newHighlightedItems.forEach(item => {
-                    const itemKey = `${item.itemName}|${item.price}|${item.profit}`;
-                    if (!previousItemNames.has(itemKey)) {
-                        sendNotification(item.itemName, item.highlightReason);
-                    }
-                });
-            } else {
-                // 第一次运行，为所有高亮项目发送通知
-                newHighlightedItems.forEach(item => {
-                    sendNotification(item.itemName, item.highlightReason);
-                });
+                // 检查是否是新增的项目
+                let isNewItem = true;
+                if (previousDataState) {
+                    const previousHighlightedItems = JSON.parse(previousDataState).highlightedItems || [];
+                    const previousItemNames = new Set(previousHighlightedItems.map(item => `${item.itemName}|${item.price}|${item.profit}`));
+                    const itemKey = `${highestProfitItem.itemName}|${highestProfitItem.price}|${highestProfitItem.profit}`;
+                    isNewItem = !previousItemNames.has(itemKey);
+                }
+                
+                // 如果是新增项目或者是第一次运行，发送通知
+                if (isNewItem || !previousDataState) {
+                    sendNotification(highestProfitItem.itemName, highestProfitItem.highlightReason, highestProfitItem.profit);
+                }
             }
             
             // 更新数据状态
@@ -718,6 +725,13 @@
                 highlightedItems: newHighlightedItems
             });
         }
+        
+        // 按照收益从高到低排序
+        extractedData.sort((a, b) => {
+            const profitA = parseFloat(a.profit.replace(/,/g, '')) || 0;
+            const profitB = parseFloat(b.profit.replace(/,/g, '')) || 0;
+            return profitB - profitA; // 从高到低排序
+        });
         
         displayExtractedData(extractedData, isDuplicate);
     }
