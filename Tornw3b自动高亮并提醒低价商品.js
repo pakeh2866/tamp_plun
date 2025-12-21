@@ -17,6 +17,56 @@
 
     // 存储上一次的数据状态，用于检测重复
     let previousDataState = null;
+    
+    // 创建音频对象用于播放提示音
+    function createNotificationSound() {
+        try {
+            // 创建一个简单的提示音，使用Web Audio API
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            
+            function playBeep(frequency = 800, duration = 200, volume = 0.3) {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.value = frequency;
+                oscillator.type = 'sine';
+                
+                gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+                gainNode.gain.linearRampToValueAtTime(volume, audioContext.currentTime + 0.01);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + duration / 1000);
+            }
+            
+            return {
+                play: function() {
+                    try {
+                        // 播放三声提示音，频率逐渐升高
+                        playBeep(600, 150, 0.3);
+                        setTimeout(() => playBeep(800, 150, 0.3), 200);
+                        setTimeout(() => playBeep(1000, 200, 0.3), 400);
+                    } catch (error) {
+                        console.error('播放提示音时出错:', error);
+                    }
+                }
+            };
+        } catch (error) {
+            console.error('创建音频上下文时出错:', error);
+            // 返回一个空的播放函数作为后备
+            return {
+                play: function() {
+                    console.log('音频不可用，跳过提示音播放');
+                }
+            };
+        }
+    }
+    
+    // 创建全局音频对象
+    const notificationSound = createNotificationSound();
 
     // 从本地存储加载配置
     function loadConfig() {
@@ -35,7 +85,8 @@
                     highlightColor: '#ffeb3b',
                     lightHighlightColor: '#fff9c4',
                     profitColor: '#4caf50',
-                    lossColor: '#f44336'
+                    lossColor: '#f44336',
+                    enableSound: parsed.enableSound !== undefined ? parsed.enableSound : true  // 新增：是否启用提示音
                 };
             }
         } catch (error) {
@@ -54,7 +105,8 @@
             highlightColor: '#ffeb3b',
             lightHighlightColor: '#fff9c4',
             profitColor: '#4caf50',
-            lossColor: '#f44336'
+            lossColor: '#f44336',
+            enableSound: true  // 新增：是否启用提示音
         };
     }
 
@@ -67,7 +119,8 @@
                 specificItems: CONFIG.specificItems,
                 minProfitOption: CONFIG.minProfitOption,
                 minProfitRateOption: CONFIG.minProfitRateOption,
-                specificItemsOption: CONFIG.specificItemsOption
+                specificItemsOption: CONFIG.specificItemsOption,
+                enableSound: CONFIG.enableSound  // 新增：保存提示音设置
             };
             localStorage.setItem('w3b_torn_config', JSON.stringify(configToSave));
         } catch (error) {
@@ -178,6 +231,14 @@
                 <small style="color: #666; font-size: 12px;">格式：物品1,价格;物品2,价格 例如：Xanax,810000;Panda Plushie,58000</small>
             </div>
             
+            <div style="margin-bottom: 15px;">
+                <label style="display: flex; align-items: center; margin-bottom: 5px; font-weight: bold;">
+                    <input type="checkbox" id="enableSound" ${CONFIG.enableSound ? 'checked' : ''} style="margin-right: 8px;">
+                    启用提示音
+                </label>
+                <small style="color: #666; font-size: 12px;">在发现符合条件的商品时播放提示音</small>
+            </div>
+            
             <div style="display: flex; gap: 10px; justify-content: flex-end;">
                 <button id="cancelBtn" style="padding: 8px 16px; border: 1px solid #ddd; border-radius: 4px; background: white; cursor: pointer;">取消</button>
                 <button id="saveBtn" style="padding: 8px 16px; border: none; border-radius: 4px; background: #007bff; color: white; cursor: pointer;">保存</button>
@@ -198,6 +259,7 @@
             CONFIG.minProfitOption = parseInt(document.getElementById('minProfitOption').value);
             CONFIG.minProfitRateOption = parseInt(document.getElementById('minProfitRateOption').value);
             CONFIG.specificItemsOption = parseInt(document.getElementById('specificItemsOption').value);
+            CONFIG.enableSound = document.getElementById('enableSound').checked;  // 新增：保存提示音设置
             
             // 保存配置到本地存储
             saveConfig();
@@ -434,6 +496,11 @@
             console.log('已保存物品名称到GM存储:', item.itemName, '过期时间:', new Date(expireTime));
         }
         
+        // 根据配置决定是否播放提示音
+        if (CONFIG.enableSound) {
+            notificationSound.play();
+        }
+        
         if (typeof GM_notification !== 'undefined') {
             GM_notification({
                 title: '商品提醒',
@@ -509,6 +576,11 @@
             }
             
             notificationText = `发现 ${items.length} 个符合条件的商品：${parts.join('，')}`;
+        }
+        
+        // 根据配置决定是否播放提示音
+        if (CONFIG.enableSound) {
+            notificationSound.play();
         }
         
         if (typeof GM_notification !== 'undefined') {
@@ -1224,6 +1296,7 @@
                         (${CONFIG.minProfitRateOption === 0 ? '关闭' : CONFIG.minProfitRateOption === 1 ? '必须满足' : '只要满足就提醒'})</li>
                     <li><strong>特定品种提醒：</strong> ${CONFIG.specificItems || '未设置'}
                         (${CONFIG.specificItemsOption === 0 ? '关闭' : CONFIG.specificItemsOption === 1 ? '必须满足' : '只要满足就提醒'})</li>
+                    <li><strong>提示音：</strong> ${CONFIG.enableSound ? '已启用' : '已关闭'}</li>
                     <li><strong>高亮颜色：</strong> ${CONFIG.highlightColor}</li>
                 </ul>
             </div>
@@ -1300,6 +1373,7 @@
                     <li>数据表格会实时显示所有商品的详细分析结果</li>
                     <li>2.设置好后保持网页不关闭就行，可以最小化。数据会自动刷新，有符合条件的会提醒。</li>
                     <li>3.有提醒的时候右下角会弹窗，单击后进入对应bazarr扫货</li>
+                    <li>4.可以在设置中开启或关闭提示音功能，当发现符合条件的商品时会播放三声提示音</li>
                 </ul>
             </div>
             
