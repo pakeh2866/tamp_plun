@@ -1502,7 +1502,7 @@
                 /* 高亮状态显示面板 */
                 .highlight-status-panel-b {
                     position: fixed;
-                    top: 20px;
+                    top: 80px;
                     right: 20px;
                     background: rgba(0, 0, 0, 0.8);
                     color: white;
@@ -1636,12 +1636,15 @@
                 console.log('开始遍历DOM树进行高亮...');
                 highlightTextNodes(document.body, itemName);
                 
-                // 检查高亮结果
+                // 检查高亮结果并滚动到第一个高亮元素
                 setTimeout(() => {
                     const highlightedElements = document.querySelectorAll('.gm-highlight-b');
                     console.log('高亮完成，找到的高亮元素数量:', highlightedElements.length);
                     if (highlightedElements.length > 0) {
                         console.log('高亮元素示例:', highlightedElements[0]);
+                        
+                        // 滚动到第一个高亮元素
+                        scrollToFirstHighlight(highlightedElements[0]);
                     }
                 }, 100);
             } else {
@@ -1649,6 +1652,51 @@
             }
             
             console.log('高亮处理完成:', itemName);
+        }
+        
+        // 滚动到第一个高亮元素
+        function scrollToFirstHighlight(firstHighlightElement) {
+            if (!firstHighlightElement) return;
+            
+            try {
+                // 使用scrollIntoView方法将元素滚动到视图中心
+                firstHighlightElement.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center',
+                    inline: 'center'
+                });
+                
+                console.log('已滚动到第一个高亮元素');
+                
+                // 添加一个临时的高亮效果，让用户更容易注意到
+                const originalBg = firstHighlightElement.style.backgroundColor;
+                firstHighlightElement.style.backgroundColor = '#ff5722';
+                firstHighlightElement.style.transition = 'background-color 0.5s ease';
+                
+                // 1秒后恢复原始颜色
+                setTimeout(() => {
+                    firstHighlightElement.style.backgroundColor = originalBg;
+                }, 1000);
+                
+            } catch (error) {
+                console.error('滚动到高亮元素时出错:', error);
+                
+                // 如果scrollIntoView失败，尝试使用传统的滚动方法
+                try {
+                    const elementRect = firstHighlightElement.getBoundingClientRect();
+                    const absoluteElementTop = elementRect.top + window.pageYOffset;
+                    const middlePosition = absoluteElementTop - (window.innerHeight / 2);
+                    
+                    window.scrollTo({
+                        top: middlePosition,
+                        behavior: 'smooth'
+                    });
+                    
+                    console.log('使用传统方法滚动到高亮元素');
+                } catch (scrollError) {
+                    console.error('传统滚动方法也失败:', scrollError);
+                }
+            }
         }
 
         // 创建或更新高亮状态显示面板
