@@ -81,7 +81,8 @@
                     // 条件选项：0=关闭，1=必须满足，2=只要满足就提醒
                     minProfitOption: parsed.minProfitOption || 2,
                     minProfitRateOption: parsed.minProfitRateOption || 2,
-                    specificItemsOption: parsed.specificItemsOption || 2,
+                    // 特定品种选项：0=关闭，1=启用（简化版）
+                    specificItemsOption: parsed.specificItemsOption !== undefined ? parsed.specificItemsOption : 0,
                     highlightColor: '#ffeb3b',
                     lightHighlightColor: '#fff9c4',
                     profitColor: '#4caf50',
@@ -101,7 +102,8 @@
             // 条件选项：0=关闭，1=必须满足，2=只要满足就提醒
             minProfitOption: 2,
             minProfitRateOption: 2,
-            specificItemsOption: 2,
+            // 特定品种选项：0=关闭，1=启用（简化版）
+            specificItemsOption: 0,
             highlightColor: '#ffeb3b',
             lightHighlightColor: '#fff9c4',
             profitColor: '#4caf50',
@@ -187,9 +189,13 @@
             <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
                 <h4 style="margin: 0 0 10px 0; color: #666; font-size: 14px;">条件选项说明</h4>
                 <p style="margin: 0; font-size: 12px; color: #666; line-height: 1.4;">
+                    <strong>最小利润/利润率条件选项：</strong><br>
                     <strong>关闭</strong>：不使用此条件<br>
                     <strong>必须满足</strong>：必须满足此条件才会提醒<br>
-                    <strong>只要满足就提醒</strong>：满足此条件即可提醒
+                    <strong>只要满足就提醒</strong>：满足此条件即可提醒<br><br>
+                    <strong>特定品种条件选项：</strong><br>
+                    <strong>关闭</strong>：不使用特定品种条件<br>
+                    <strong>启用</strong>：只有满足特定品种条件的商品才会被提醒，其他条件将被忽略
                 </p>
             </div>
             
@@ -224,11 +230,13 @@
                 <div style="margin-top: 5px;">
                     <select id="specificItemsOption" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
                         <option value="0" ${CONFIG.specificItemsOption === 0 ? 'selected' : ''}>关闭</option>
-                        <option value="1" ${CONFIG.specificItemsOption === 1 ? 'selected' : ''}>必须满足</option>
-                        <option value="2" ${CONFIG.specificItemsOption === 2 ? 'selected' : ''}>只要满足就提醒</option>
+                        <option value="1" ${CONFIG.specificItemsOption === 1 ? 'selected' : ''}>启用</option>
                     </select>
                 </div>
                 <small style="color: #666; font-size: 12px;">格式：物品1,价格;物品2,价格 例如：Xanax,810000;Panda Plushie,58000</small>
+                <p style="margin: 5px 0 0 0; font-size: 12px; color: #ff6b6b; line-height: 1.4;">
+                    <strong>注意</strong>：启用后，只有满足特定品种条件的商品才会被提醒，其他条件将被忽略
+                </p>
             </div>
             
             <div style="margin-bottom: 15px;">
@@ -388,7 +396,33 @@
         const pr = parseFloat(profit.replace(/,/g, ''));
         const prRate = parseFloat(profitRate) || 0;
         
-        // 检查各个条件是否满足
+        // 检查特定品种条件是否启用
+        const specificItemsEnabled = CONFIG.specificItemsOption === 1;
+        
+        // 如果特定品种条件启用，则只判断特定品种条件
+        if (specificItemsEnabled) {
+            if (!CONFIG.specificItems || !itemName || itemName === 'N/A') {
+                return { highlight: false, reasons: [] };
+            }
+            
+            const specificItemsList = parseSpecificItems(CONFIG.specificItems);
+            for (const item of specificItemsList) {
+                if (itemName.toLowerCase().includes(item.name.toLowerCase())) {
+                    const itemPrice = parseFloat(price.replace(/,/g, ''));
+                    if (!isNaN(itemPrice) && itemPrice <= item.price) {
+                        return {
+                            highlight: true,
+                            reasons: ['特定品种']
+                        };
+                    }
+                }
+            }
+            
+            // 特定品种条件启用但不满足，不高亮
+            return { highlight: false, reasons: [] };
+        }
+        
+        // 特定品种条件未启用，判断其他条件
         const conditions = {
             minProfit: {
                 enabled: CONFIG.minProfitOption !== 0,
@@ -401,28 +435,8 @@
                 required: CONFIG.minProfitRateOption === 1,
                 satisfied: CONFIG.minProfitRate > 0 && prRate >= CONFIG.minProfitRate,
                 name: '利润率'
-            },
-            specificItems: {
-                enabled: CONFIG.specificItemsOption !== 0,
-                required: CONFIG.specificItemsOption === 1,
-                satisfied: false,
-                name: '特定品种'
             }
         };
-        
-        // 检查特定品种条件
-        if (conditions.specificItems.enabled && CONFIG.specificItems && itemName && itemName !== 'N/A') {
-            const specificItemsList = parseSpecificItems(CONFIG.specificItems);
-            for (const item of specificItemsList) {
-                if (itemName.toLowerCase().includes(item.name.toLowerCase())) {
-                    const itemPrice = parseFloat(price.replace(/,/g, ''));
-                    if (!isNaN(itemPrice) && itemPrice <= item.price) {
-                        conditions.specificItems.satisfied = true;
-                        break;
-                    }
-                }
-            }
-        }
         
         // 收集所有启用的条件
         const enabledConditions = Object.values(conditions).filter(c => c.enabled);
@@ -1327,10 +1341,14 @@
                 <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
                     <h4 style="color: #333; margin-bottom: 8px;">4. 高亮条件判断</h4>
                     <p style="margin: 0; font-family: monospace; color: #9c27b0;">
-                        高亮显示 = 满足所有"必须满足"的条件 AND 至少满足一个"只要满足就提醒"的条件
+                        基本逻辑 = 满足所有"必须满足"的条件 AND 至少满足一个"只要满足就提醒"的条件
+                    </p>
+                    <p style="margin: 10px 0 0 0; font-size: 12px; color: #ff6b6b;">
+                        <strong>特殊规则</strong>：如果启用了特定品种条件，则只有满足该条件的商品才会被提醒，其他条件将被忽略
                     </p>
                     <p style="margin: 10px 0 0 0; font-size: 12px; color: #666;">
-                        每个条件可以设置为：关闭、必须满足、只要满足就提醒
+                        最小利润/利润率条件可以设置为：关闭、必须满足、只要满足就提醒<br>
+                        特定品种条件可以设置为：关闭、启用
                     </p>
                 </div>
             </div>
@@ -1368,6 +1386,8 @@
                     <li>每个条件可以单独设置为"关闭"、"必须满足"或"只要满足就提醒"</li>
                     <li>如果设置了"必须满足"的条件，则必须同时满足所有这些条件才会高亮</li>
                     <li>如果没有任何"必须满足"的条件，则满足任意一个"只要满足就提醒"的条件即可高亮</li>
+                    <li><strong>重要</strong>：如果启用了特定品种条件，则只有满足该条件的商品才会被提醒，其他条件将被忽略</li>
+                    <li>特定品种条件已简化为只有"关闭"和"启用"两个选项，启用时具有最高优先级</li>
                     <li>符合高亮条件的商品会在原页面中以黄色背景显示</li>
                     <li>特定品种支持模糊匹配，输入物品名称的部分关键词即可</li>
                     <li>数据表格会实时显示所有商品的详细分析结果</li>
