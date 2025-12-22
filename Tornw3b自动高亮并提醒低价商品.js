@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tornw3b自动高亮并提醒低价商品
 // @namespace    https://github.com/pakeh2866
-// @version      0.2
+// @version      0.3
 // @description  w3b中低于某个价格，利润在x%以上的高亮显示,并提醒
 // @author       pakeh[3973672]  如果对你有那么一点点帮助，可以send我一个Xcan
 // @match        https://weav3r.dev/favorites
@@ -11,6 +11,30 @@
 // @grant        GM_getValue
 // @lincense     MIT
 // ==/UserScript==
+
+/*
+ * ==================== 更新日志 ====================
+ *
+ * 版本 0.3 (2025-12-22)
+ * - 修复：解决了特定品种条件与其他条件冲突的问题
+ * - 新增：添加了提示音功能，可在设置中开启/关闭
+ * - 优化：改进了表格显示效果，增加了最小化功能
+ * - 优化：增强了链接点击的稳定性，确保ID链接能够正常打开
+ *
+ * ==================== 使用方法 ====================
+ *
+ * 1. 安装脚本后访问 https://weav3r.dev/favorites
+ * 2. 点击页面右上角的 ⚙️ 按钮打开设置面板
+ * 3. 根据需要配置最小利润、利润率和特定品种参数
+ * 4. 设置好后保持网页不关闭，脚本会自动监控并提醒
+ * 5. 当发现符合条件的商品时，会收到通知并可以点击进入bazarr扫货
+ *
+ * ==================== 技术支持 ====================
+ *
+ * 如有问题或建议，请联系：pakeh[3973672]
+ * 如果对你有那么一点点帮助，可以send我一个Xan
+ *
+ */
 
 (function() {
     'use strict';
@@ -1205,7 +1229,7 @@
             `;
             
             const refreshButton = document.createElement('button');
-            refreshButton.textContent = '📊 计算逻辑说明';
+            refreshButton.textContent = '📊 逻辑和计算说明';
             refreshButton.style.cssText = `
                 padding: 10px 20px;
                 background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
