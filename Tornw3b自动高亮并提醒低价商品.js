@@ -114,7 +114,8 @@
                         lightHighlightColor: '#fff9c4',
                         profitColor: '#4caf50',
                         lossColor: '#f44336',
-                        enableSound: parsed.enableSound !== undefined ? parsed.enableSound : true  // 新增：是否启用提示音
+                        enableSound: parsed.enableSound !== undefined ? parsed.enableSound : true,  // 新增：是否启用提示音
+                        blacklistIds: parsed.blacklistIds || ''  // 新增：黑名单ID列表
                     };
                 }
             } catch (error) {
@@ -135,7 +136,8 @@
                 lightHighlightColor: '#fff9c4',
                 profitColor: '#4caf50',
                 lossColor: '#f44336',
-                enableSound: true  // 新增：是否启用提示音
+                enableSound: true,  // 新增：是否启用提示音
+                blacklistIds: ''  // 新增：黑名单ID列表
             };
         }
 
@@ -149,7 +151,8 @@
                     minProfitOption: CONFIG.minProfitOption,
                     minProfitRateOption: CONFIG.minProfitRateOption,
                     specificItemsOption: CONFIG.specificItemsOption,
-                    enableSound: CONFIG.enableSound  // 新增：保存提示音设置
+                    enableSound: CONFIG.enableSound,  // 新增：保存提示音设置
+                    blacklistIds: CONFIG.blacklistIds  // 新增：保存黑名单ID列表
                 };
                 localStorage.setItem('w3b_torn_config', JSON.stringify(configToSave));
             } catch (error) {
@@ -267,6 +270,15 @@
                 </div>
                 
                 <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">黑名单ID</label>
+                    <input type="text" id="blacklistIds" value="${CONFIG.blacklistIds}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <small style="color: #666; font-size: 12px;">格式：用逗号分隔的ID列表，例如：xingchen,pakeh</small>
+                    <p style="margin: 5px 0 0 0; font-size: 12px; color: #ff6b6b; line-height: 1.4;">
+                        <strong>注意</strong>：如果商品ID在黑名单中，该商品将被忽略并以橙红色高亮显示
+                    </p>
+                </div>
+                
+                <div style="margin-bottom: 15px;">
                     <label style="display: flex; align-items: center; margin-bottom: 5px; font-weight: bold;">
                         <input type="checkbox" id="enableSound" ${CONFIG.enableSound ? 'checked' : ''} style="margin-right: 8px;">
                         启用提示音
@@ -295,6 +307,7 @@
                 CONFIG.minProfitRateOption = parseInt(document.getElementById('minProfitRateOption').value);
                 CONFIG.specificItemsOption = parseInt(document.getElementById('specificItemsOption').value);
                 CONFIG.enableSound = document.getElementById('enableSound').checked;  // 新增：保存提示音设置
+                CONFIG.blacklistIds = document.getElementById('blacklistIds').value.trim();  // 新增：保存黑名单ID列表
                 
                 // 保存配置到本地存储
                 saveConfig();
@@ -415,10 +428,29 @@
             }
         }
 
+        // 检查ID是否在黑名单中
+        function isIdInBlacklist(id) {
+            if (!CONFIG.blacklistIds || CONFIG.blacklistIds.trim() === '') {
+                return false;
+            }
+            
+            const blacklistArray = CONFIG.blacklistIds.split(',').map(item => item.trim().toLowerCase());
+            return blacklistArray.includes(id.toLowerCase());
+        }
+
         // 判断是否应该高亮显示，并返回满足的条件类型
-        function shouldHighlight(price, profit, profitRate, itemName) {
+        function shouldHighlight(price, profit, profitRate, itemName, itemId) {
             // 根据配置的最小利润、利润率和特定品种判断商品是否符合高亮条件
             if (!price || !profit || price === 'N/A' || profit === 'N/A') return { highlight: false, reasons: [] };
+            
+            // 检查ID是否在黑名单中
+            if (itemId && isIdInBlacklist(itemId)) {
+                return {
+                    highlight: true,
+                    reasons: ['黑名单'],
+                    isBlacklisted: true
+                };
+            }
             
             const pr = parseFloat(profit.replace(/,/g, ''));
             const prRate = parseFloat(profitRate) || 0;
@@ -847,7 +879,7 @@
                     }
                     
                     const profitRate = calculateProfitRate(mrkt, top1PriceValue);
-                    const highlightResult = shouldHighlight(top1PriceValue, totalProfit, profitRate, itemName);
+                    const highlightResult = shouldHighlight(top1PriceValue, totalProfit, profitRate, itemName, top1Id);
                     
                     extractedData.push({
                         index: index + 1,
@@ -865,6 +897,7 @@
                         priceDiff,
                         highlight: highlightResult.highlight,
                         highlightReason: highlightResult.reasons ? highlightResult.reasons.join(', ') : '',
+                        isBlacklisted: highlightResult.isBlacklisted || false,
                         top1Id,
                         top1Link,
                         top1Quantity,
@@ -886,8 +919,14 @@
                     
                     // 高亮符合条件的商品卡片
                     if (highlightResult.highlight) {
-                        element.style.backgroundColor = CONFIG.highlightColor;
-                        element.style.transition = 'background-color 0.3s ease';
+                        // 如果是黑名单中的商品，使用橙红色高亮
+                        if (highlightResult.isBlacklisted) {
+                            element.style.backgroundColor = '#ff5722'; // 橙红色
+                            element.style.transition = 'background-color 0.3s ease';
+                        } else {
+                            element.style.backgroundColor = CONFIG.highlightColor;
+                            element.style.transition = 'background-color 0.3s ease';
+                        }
                     }
                     
                 } catch (error) {
@@ -1074,7 +1113,11 @@
                     // 根据是否重复数据选择高亮颜色
                     let highlightColor = '';
                     if (item.highlight) {
-                        highlightColor = isDuplicate ? CONFIG.lightHighlightColor : '#fff3cd';
+                        if (item.isBlacklisted) {
+                            highlightColor = '#ffccbc'; // 橙红色浅色版本
+                        } else {
+                            highlightColor = isDuplicate ? CONFIG.lightHighlightColor : '#fff3cd';
+                        }
                     }
                     
                     row.style.cssText = `
@@ -1408,7 +1451,8 @@
                         </p>
                         <p style="margin: 10px 0 0 0; font-size: 12px; color: #666;">
                             最小利润/利润率条件可以设置为：关闭、必须满足、只要满足就提醒<br>
-                            特定品种条件可以设置为：关闭、启用
+                            特定品种条件可以设置为：关闭、启用<br>
+                            黑名单功能：如果商品ID在黑名单中，该商品将被忽略并以橙红色高亮显示
                         </p>
                     </div>
                 </div>
