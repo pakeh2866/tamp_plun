@@ -211,6 +211,8 @@
                 font-family: Arial, sans-serif;
                 min-width: 400px;
                 max-width: 500px;
+                max-height: 80vh;
+                overflow-y: auto;
             `;
 
             panel.innerHTML = `
@@ -539,10 +541,11 @@
 
         // 生成数据状态的唯一标识（简化版）
         function generateDataState(data) {
-            const highlightedItems = data.filter(item => item.highlight);
+            // 过滤出高亮且非黑名单的商品
+            const highlightedItems = data.filter(item => item.highlight && !item.isBlacklisted);
             if (highlightedItems.length === 0) return '';
             
-            // 找出收益最高的项目
+            // 找出收益最高的非黑名单项目
             const highestProfitItem = highlightedItems.reduce((highest, current) => {
                 const profitCurrent = parseFloat(current.profit.replace(/,/g, '')) || 0;
                 const profitHighest = parseFloat(highest.profit.replace(/,/g, '')) || 0;
@@ -941,17 +944,22 @@
             if (!isDuplicate) {
                 const newHighlightedItems = extractedData.filter(item => item.highlight);
                 
-                // 如果有高亮项目，只通知收益最高的那个
+                // 如果有高亮项目，只通知收益最高的非黑名单商品
                 if (newHighlightedItems.length > 0) {
-                    // 找出收益最高的项目
-                    const highestProfitItem = newHighlightedItems.reduce((highest, current) => {
-                        const profitCurrent = parseFloat(current.profit.replace(/,/g, '')) || 0;
-                        const profitHighest = parseFloat(highest.profit.replace(/,/g, '')) || 0;
-                        return profitCurrent > profitHighest ? current : highest;
-                    });
+                    // 过滤掉黑名单中的商品
+                    const nonBlacklistedItems = newHighlightedItems.filter(item => !item.isBlacklisted);
                     
-                    // 直接发送最高收益商品的通知
-                    sendHighestProfitNotification(highestProfitItem);
+                    // 如果有非黑名单的高亮项目，找出收益最高的那个
+                    if (nonBlacklistedItems.length > 0) {
+                        const highestProfitItem = nonBlacklistedItems.reduce((highest, current) => {
+                            const profitCurrent = parseFloat(current.profit.replace(/,/g, '')) || 0;
+                            const profitHighest = parseFloat(highest.profit.replace(/,/g, '')) || 0;
+                            return profitCurrent > profitHighest ? current : highest;
+                        });
+                        
+                        // 发送最高收益非黑名单商品的通知
+                        sendHighestProfitNotification(highestProfitItem);
+                    }
                 }
                 
                 // 更新数据状态
