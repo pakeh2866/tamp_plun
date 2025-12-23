@@ -1121,6 +1121,17 @@
                             console.log('链接点击事件触发:', item.topriceLink);
                             e.preventDefault();
                             e.stopPropagation();
+                            
+                            // 保存物品名称到GM存储，设置15秒过期时间
+                            if (typeof GM_setValue !== 'undefined' && item.itemName && item.itemName !== 'N/A') {
+                                const expireTime = Date.now() + 15000; // 15秒后过期
+                                GM_setValue('highlightItem', {
+                                    itemName: item.itemName,
+                                    expireTime: expireTime
+                                });
+                                console.log('已保存物品名称到GM存储:', item.itemName, '过期时间:', new Date(expireTime));
+                            }
+                            
                             window.open(item.topriceLink, '_blank');
                         });
                         
@@ -1146,6 +1157,17 @@
                             console.log('链接dblclick事件触发:', item.topriceLink);
                             e.preventDefault();
                             e.stopPropagation();
+                            
+                            // 保存物品名称到GM存储，设置15秒过期时间
+                            if (typeof GM_setValue !== 'undefined' && item.itemName && item.itemName !== 'N/A') {
+                                const expireTime = Date.now() + 15000; // 15秒后过期
+                                GM_setValue('highlightItem', {
+                                    itemName: item.itemName,
+                                    expireTime: expireTime
+                                });
+                                console.log('已保存物品名称到GM存储:', item.itemName, '过期时间:', new Date(expireTime));
+                            }
+                            
                             window.open(item.topriceLink, '_blank');
                         });
                         
@@ -1162,6 +1184,17 @@
                                 // 直接在这里处理链接点击
                                 e.preventDefault();
                                 e.stopPropagation();
+                                
+                                // 保存物品名称到GM存储，设置15秒过期时间
+                                if (typeof GM_setValue !== 'undefined' && item.itemName && item.itemName !== 'N/A') {
+                                    const expireTime = Date.now() + 15000; // 15秒后过期
+                                    GM_setValue('highlightItem', {
+                                        itemName: item.itemName,
+                                        expireTime: expireTime
+                                    });
+                                    console.log('已保存物品名称到GM存储:', item.itemName, '过期时间:', new Date(expireTime));
+                                }
+                                
                                 window.open(item.topriceLink, '_blank');
                                 // 移除这个全局监听器避免重复触发
                                 document.removeEventListener('click', globalClickHandler, true);
