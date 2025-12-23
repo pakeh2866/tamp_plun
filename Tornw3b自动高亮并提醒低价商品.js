@@ -1622,7 +1622,7 @@
         }
 
         // 高亮页面中匹配的文本
-        function highlightPageContent(itemName) {
+        function highlightPageContent(itemName, shouldScroll = true) {
             if (!itemName || itemName.trim() === '') return;
             
             console.log('开始高亮页面内容:', itemName);
@@ -1636,17 +1636,20 @@
                 console.log('开始遍历DOM树进行高亮...');
                 highlightTextNodes(document.body, itemName);
                 
-                // 检查高亮结果并滚动到第一个高亮元素
-                setTimeout(() => {
-                    const highlightedElements = document.querySelectorAll('.gm-highlight-b');
-                    console.log('高亮完成，找到的高亮元素数量:', highlightedElements.length);
-                    if (highlightedElements.length > 0) {
-                        console.log('高亮元素示例:', highlightedElements[0]);
-                        
-                        // 滚动到第一个高亮元素
-                        scrollToFirstHighlight(highlightedElements[0]);
-                    }
-                }, 100);
+                // 只有在shouldScroll为true时才滚动到第一个高亮元素
+                if (shouldScroll) {
+                    // 检查高亮结果并滚动到第一个高亮元素
+                    setTimeout(() => {
+                        const highlightedElements = document.querySelectorAll('.gm-highlight-b');
+                        console.log('高亮完成，找到的高亮元素数量:', highlightedElements.length);
+                        if (highlightedElements.length > 0) {
+                            console.log('高亮元素示例:', highlightedElements[0]);
+                            
+                            // 滚动到第一个高亮元素
+                            scrollToFirstHighlight(highlightedElements[0]);
+                        }
+                    }, 100);
+                }
             } else {
                 console.log('页面body不存在，无法进行高亮');
             }
@@ -1744,7 +1747,7 @@
                         // 数据未过期，执行高亮
                         if (highlightData.itemName && highlightData.itemName.trim() !== '') {
                             console.log('数据未过期，开始高亮物品:', highlightData.itemName);
-                            highlightPageContent(highlightData.itemName);
+                            highlightPageContent(highlightData.itemName, false); // 传递false参数，不自动滚动
                             // 更新状态面板
                             updateStatusPanel(highlightData.itemName, highlightData.expireTime);
                         } else {
