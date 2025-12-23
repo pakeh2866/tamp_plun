@@ -3,7 +3,7 @@
 // @namespace    https://github.com/pakeh2866
 // @version      0.4
 // @description  w3b中低于某个价格，利润在x%以上的高亮显示,并提醒
-// @author       pakeh[3973672]  如果对你有那么一点点帮助，可以send我一个Xcan
+// @author       pakeh[3973672]  如果对你有那么一点点帮助，可以send我一个Xan
 // @match        https://weav3r.dev/favorites
 // @match        https://www.torn.com/bazaar.php?userId=*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=torn.com
@@ -17,7 +17,7 @@
  * ==================== 更新日志 ====================
  *
  * 版本 0.4 (2025-12-23)
- * - 修复：解决了特定品种条件与其他条件冲突的问题
+ * - 修复：优化了特定品种条件的数量条件
  * - 新增：添加了黑名单功能，可忽略特定ID的商品并以橙红色高亮显示
  * - 优化：增加了巴扎高亮
  *
