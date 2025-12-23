@@ -30,7 +30,7 @@
 
 
 /* 使用立即执行函数确保作用域隔离 */
-let currentTime = 123;
+let currentTime = 0; // 游戏阶段：0=翻后/游戏结束，1=翻前阶段
 (function() {
     'use strict';
     /* 清空缓存用，一般情况请勿放开 */
@@ -39,15 +39,20 @@ let currentTime = 123;
     const DEBUG_MODE = true;
 
     /* 存储玩家数据 */
-    let playerStats = {};
-    let processed_ids = [];
-    let table_player = {intable:false};
-    console.log(Array.isArray(processed_ids)); // 验证是否为真数组
+    let playerStats = {}; // 玩家统计数据：{playerId: {hands: 手数, vpip: 主动入池次数}}
+    let processed_ids = []; // 本局已处理的玩家ID列表，防止重复计算
+    let table_player = {}; // 桌面玩家状态：{playerId: {intable: true/false}}
+    
+    if(DEBUG_MODE) console.log('=== VPIP脚本启动 ===');
+    if(DEBUG_MODE) console.log('验证processed_ids是否为数组:', Array.isArray(processed_ids));
     // 从本地存储加载playerStats
     try {
         const storedPlayerStats = GM_getValue('playerStats');
         if (storedPlayerStats) {
             playerStats = JSON.parse(storedPlayerStats);
+            if(DEBUG_MODE) console.log('成功加载历史数据:', Object.keys(playerStats).length, '个玩家');
+        } else {
+            if(DEBUG_MODE) console.log('未找到历史数据，使用空数据开始');
         }
     } catch (e) {
         console.error('加载持久化数据时出错:', e);
@@ -56,7 +61,7 @@ let currentTime = 123;
     /* 核心日志解析函数 */
     function parseGameLog(div) {
         try {
-
+            // 提取玩家和行为信息
             const playerElem = div.querySelector('em');
             const actionElem = div.querySelector('span');
 
@@ -68,60 +73,83 @@ let currentTime = 123;
             const playerId = playerElem.textContent.trim();
             const action = actionElem.textContent.trim();
 
-            //                if(DEBUG_MODE) console.log('处理玩家:', playerId, '行为:', action);
+            if(DEBUG_MODE) console.log('=== 解析日志条目 ===');
+            if(DEBUG_MODE) console.log('玩家ID:', playerId, '行为:', action, '当前游戏阶段:', currentTime === 1 ? '翻前' : '翻后/结束');
+            // 处理玩家离桌
             if(/^left/i.test(action))
             {
-                /* left the table */
                 table_player[playerId] = {intable:false};
-                console.log("%s left the table ",playerId);
-                console.log(table_player[playerId]);
+                if(DEBUG_MODE) console.log('🚪 玩家离桌:', playerId);
+                return;
             }
+            
+            // 处理玩家入桌（暂时不处理）
             if(/^joined/i.test(action))
             {
-                /* join  the table */
+                if(DEBUG_MODE) console.log('👋 玩家入桌:', playerId);
                 return;
-
             }
+            
+            // 翻前阶段开始
             if(playerId == "The preflop")
             {
                 currentTime = 1;
-
+                if(DEBUG_MODE) console.log('🎯 进入翻前阶段，开始VPIP统计');
                 return;
-
             }
+            
+            // 处理盲注（不计入VPIP）
             if(/^post/i.test(action))
             {
-
+                if(DEBUG_MODE) console.log('💰 盲注行为:', playerId, action, '(不计入VPIP)');
                 return;
-
             }
+            
+            // 游戏结束处理
             if(playerId == "The flop:" || /^won/i.test(action))
             {
                 currentTime = 0;
                 processed_ids = [];
-                // 在一轮游戏结束时，将playerStats持久化存储
-                savePlayerStats();
-                console.log("清0");
-                console.log(processed_ids);
+                savePlayerStats(); // 保存数据
+                if(DEBUG_MODE) console.log('🏁 游戏结束，重置状态，已保存数据');
+                if(DEBUG_MODE) console.log('清空已处理玩家列表:', processed_ids);
                 return;
-                /* 出翻牌了,或者翻牌前直接胜利 */
             }
+            // ========== VPIP核心计算逻辑 ==========
             if( currentTime === 1){
-                /* 初始化玩家记录 */
+                if(DEBUG_MODE) console.log('📊 [翻前阶段] 处理玩家:', playerId);
+                
+                // 步骤1: 初始化玩家数据（如果第一次出现）
                 playerStats[playerId] = playerStats[playerId] || {hands: 0, vpip: 0};
+                
+                // 步骤2: 防重复计算检查
                 if(processed_ids.includes(playerId))
                 {
-                    console.log("%s 该玩家本局被记录过了",playerId);
+                    if(DEBUG_MODE) console.log('⚠️ 玩家', playerId, '本局已记录过，跳过');
                     return;
                 }
-                processed_ids.push(playerId); // 添加元素
+                
+                // 步骤3: 标记玩家已处理和在桌
+                processed_ids.push(playerId);
                 table_player[playerId] = {intable:true};
-
-                /* 更新统计 */
+                
+                // 步骤4: 更新手数（所有参与玩家都增加手数）
                 playerStats[playerId].hands++;
-                if (/^called/i.test(action) || /^raised/i.test(action)||/^checked/i.test(action)||/^allin/i.test(action)) {
+                const oldVpip = playerStats[playerId].vpip;
+                
+                // 步骤5: 判断是否为主动入池行为
+                const isVpipAction = /^called/i.test(action) || /^raised/i.test(action)||/^checked/i.test(action)||/^allin/i.test(action);
+                
+                if (isVpipAction) {
                     playerStats[playerId].vpip++;
+                    const vpipRate = ((playerStats[playerId].vpip / playerStats[playerId].hands) * 100).toFixed(1);
+                    if(DEBUG_MODE) console.log(`✅ VPIP更新: ${playerId} | 手数: ${playerStats[playerId].hands} | VPIP: ${playerStats[playerId].vpip} | VPIP率: ${vpipRate}% | 行为: ${action}`);
+                } else {
+                    const vpipRate = ((playerStats[playerId].vpip / playerStats[playerId].hands) * 100).toFixed(1);
+                    if(DEBUG_MODE) console.log(`❌ 非VPIP行为: ${playerId} | 手数: ${playerStats[playerId].hands} | VPIP: ${playerStats[playerId].vpip} | VPIP率: ${vpipRate}% | 行为: ${action}`);
                 }
+            } else {
+                if(DEBUG_MODE) console.log('⏸️ [翻后阶段] 跳过VPIP统计:', playerId, action);
             }
 
         } catch (e) {
@@ -156,30 +184,51 @@ let currentTime = 123;
     /* 显示统计面板 */
     function showStats() {
         try {
-
+            if(DEBUG_MODE) console.log('🔄 更新统计面板显示');
+            
             const container = document.getElementById('vpip-stats') || createStatsContainer();
-
-            let html = '<h3>VPIP统计</h3><table>';
-            html += '<tr><th>玩家</th><th>手数</th><th>VPIP</th></tr>';
-            for (const id in playerStats) {
-                const stat = playerStats[id];
-                if(table_player[id] && (table_player[id].intable))
-                {
-                    const percent = stat.hands > 0
+            const tablePlayers = Object.keys(table_player).filter(id => table_player[id].intable);
+            
+            if(DEBUG_MODE) console.log('当前在桌玩家:', tablePlayers);
+            
+            let html = '<h3>🎰 VPIP统计面板</h3><table>';
+            html += '<tr><th>玩家</th><th>手数</th><th>VPIP</th><th>VPIP率</th><th>类型</th></tr>';
+            
+            // 按VPIP率排序显示
+            const sortedPlayers = tablePlayers
+                .filter(id => playerStats[id])
+                .sort((a, b) => {
+                    const rateA = playerStats[a].hands > 0 ? playerStats[a].vpip / playerStats[a].hands : 0;
+                    const rateB = playerStats[b].hands > 0 ? playerStats[b].vpip / playerStats[b].hands : 0;
+                    return rateB - rateA; // 按VPIP率降序排列
+                });
+            
+            for (const playerId of sortedPlayers) {
+                const stat = playerStats[playerId];
+                const percent = stat.hands > 0
                     ? (stat.vpip / stat.hands * 100).toFixed(1)
                     : "0.0";
-                    const color = getVpipColor(percent);
-                    html += `<tr>
-                    <td>${id} &nbsp;&nbsp;</td>
-                    <td>${stat.hands} </td>
-                    <td style="color:${color}">${percent}%</td>
+                const color = getVpipColor(percent);
+                const playerType = getPlayerType(percent);
+                
+                html += `<tr>
+                    <td>${playerId}</td>
+                    <td>${stat.hands}</td>
+                    <td>${stat.vpip}</td>
+                    <td style="color:${color};font-weight:bold;">${percent}%</td>
+                    <td style="color:${color}">${playerType}</td>
                 </tr>`;
-                }
+            }
+            
+            if (sortedPlayers.length === 0) {
+                html += '<tr><td colspan="5" style="text-align:center;color:#666;">暂无在桌玩家数据</td></tr>';
             }
 
             container.innerHTML = html + '</table>';
+            
+            if(DEBUG_MODE) console.log('✅ 统计面板更新完成，显示', sortedPlayers.length, '个玩家');
         } catch (e) {
-            console.error('显示统计错误:', e);
+            console.error('❌ 显示统计错误:', e);
         }
     }
 
@@ -349,8 +398,9 @@ let currentTime = 123;
     function savePlayerStats() {
         try {
             GM_setValue('playerStats', JSON.stringify(playerStats));
+            if(DEBUG_MODE) console.log('💾 数据已保存到本地存储，共', Object.keys(playerStats).length, '个玩家');
         } catch (e) {
-            console.error('保存playerStats时出错:', e);
+            console.error('❌ 保存playerStats时出错:', e);
         }
     }
     /* 主初始化函数 */
@@ -361,12 +411,21 @@ let currentTime = 123;
     // 延迟启动确保日志容器存在
 
     function getVpipColor(vpipPercent) {
-        if (vpipPercent < 20) return 'red';
-        if (vpipPercent < 40) return 'orange';
-        if (vpipPercent < 60) return 'buff';
-        if (vpipPercent < 70) return 'blue';
-        if (vpipPercent < 80) return 'cyan';
-        return 'green';
+        if (vpipPercent < 20) return '#ff4444';      // 红色 - 极紧
+        if (vpipPercent < 40) return '#ff8800';      // 橙色 - 紧
+        if (vpipPercent < 60) return '#ffcc00';      // 黄色 - 正常
+        if (vpipPercent < 70) return '#4488ff';      // 蓝色 - 松
+        if (vpipPercent < 80) return '#00ccff';      // 青色 - 很松
+        return '#44ff44';                            // 绿色 - 极松
+    }
+    
+    function getPlayerType(vpipPercent) {
+        if (vpipPercent < 20) return '极紧';
+        if (vpipPercent < 40) return '紧';
+        if (vpipPercent < 60) return '正常';
+        if (vpipPercent < 70) return '松';
+        if (vpipPercent < 80) return '很松';
+        return '极松';
     }
 
 
