@@ -104,7 +104,7 @@
                     return {
                         minProfit: parsed.minProfit || 5000,
                         minProfitRate: parsed.minProfitRate || 4,
-                        specificItems: parsed.specificItems || 'Xanax,810000',
+                        specificItems: parsed.specificItems || 'Xanax,3,810000',
                         // 条件选项：0=关闭，1=必须满足，2=只要满足就提醒
                         minProfitOption: parsed.minProfitOption || 2,
                         minProfitRateOption: parsed.minProfitRateOption || 2,
@@ -126,7 +126,7 @@
             return {
                 minProfit: 5000,
                 minProfitRate: 4,
-                specificItems: 'Xanax,810000;Panda Plushie,58000',
+                specificItems: 'Xanax,3,810000;Panda Plushie,3,58000',
                 // 条件选项：0=关闭，1=必须满足，2=只要满足就提醒
                 minProfitOption: 2,
                 minProfitRateOption: 2,
@@ -265,7 +265,7 @@
                             <option value="1" ${CONFIG.specificItemsOption === 1 ? 'selected' : ''}>启用</option>
                         </select>
                     </div>
-                    <small style="color: #666; font-size: 12px;">格式：物品1,价格;物品2,价格 例如：Xanax,810000;Panda Plushie,58000</small>
+                    <small style="color: #666; font-size: 12px;">格式：物品1,数量,价格;物品2,数量,价格 例如：Xanax,3,810000;Panda Plushie,3,58000</small>
                     <p style="margin: 5px 0 0 0; font-size: 12px; color: #ff6b6b; line-height: 1.4;">
                         <strong>注意</strong>：启用后，只有满足特定品种条件的商品才会被提醒，其他条件将被忽略
                     </p>
@@ -414,11 +414,12 @@
                 const result = [];
                 items.forEach(item => {
                     const parts = item.split(',');
-                    if (parts.length === 2) {
+                    if (parts.length === 3) {
                         const name = parts[0].trim();
-                        const price = parseFloat(parts[1].trim());
-                        if (name && !isNaN(price)) {
-                            result.push({ name, price });
+                        const quantity = parseInt(parts[1].trim());
+                        const price = parseFloat(parts[2].trim());
+                        if (name && !isNaN(quantity) && !isNaN(price)) {
+                            result.push({ name, quantity, price });
                         }
                     }
                 });
@@ -441,7 +442,7 @@
         }
 
         // 判断是否应该高亮显示，并返回满足的条件类型
-        function shouldHighlight(price, profit, profitRate, itemName, itemId) {
+        function shouldHighlight(price, profit, profitRate, itemName, itemId, quantity) {
             // 根据配置的最小利润、利润率和特定品种判断商品是否符合高亮条件
             if (!price || !profit || price === 'N/A' || profit === 'N/A') return { highlight: false, reasons: [] };
             
@@ -470,7 +471,12 @@
                 for (const item of specificItemsList) {
                     if (itemName.toLowerCase().includes(item.name.toLowerCase())) {
                         const itemPrice = parseFloat(price.replace(/,/g, ''));
-                        if (!isNaN(itemPrice) && itemPrice <= item.price) {
+                        // 使用传入的数量参数
+                        const currentQuantity = quantity ? parseFloat(quantity.replace(/,/g, '')) : 0;
+                        
+                        // 同时判断价格和数量条件（且关系）
+                        if (!isNaN(itemPrice) && !isNaN(currentQuantity) &&
+                            itemPrice <= item.price && currentQuantity >= item.quantity) {
                             return {
                                 highlight: true,
                                 reasons: ['特定品种']
@@ -882,7 +888,7 @@
                     }
                     
                     const profitRate = calculateProfitRate(mrkt, top1PriceValue);
-                    const highlightResult = shouldHighlight(top1PriceValue, totalProfit, profitRate, itemName, top1Id);
+                    const highlightResult = shouldHighlight(top1PriceValue, totalProfit, profitRate, itemName, top1Id, top1Quantity);
                     
                     extractedData.push({
                         index: index + 1,
@@ -1420,7 +1426,7 @@
                         <li><strong>最小利润率阈值：</strong> ${CONFIG.minProfitRate}%
                             (${CONFIG.minProfitRateOption === 0 ? '关闭' : CONFIG.minProfitRateOption === 1 ? '必须满足' : '只要满足就提醒'})</li>
                         <li><strong>特定品种提醒：</strong> ${CONFIG.specificItems || '未设置'}
-                            (${CONFIG.specificItemsOption === 0 ? '关闭' : CONFIG.specificItemsOption === 1 ? '必须满足' : '只要满足就提醒'})</li>
+                            (${CONFIG.specificItemsOption === 0 ? '关闭' : CONFIG.specificItemsOption === 1 ? '启用' : '关闭'})</li>
                         <li><strong>提示音：</strong> ${CONFIG.enableSound ? '已启用' : '已关闭'}</li>
                         <li><strong>高亮颜色：</strong> ${CONFIG.highlightColor}</li>
                     </ul>
@@ -1459,7 +1465,8 @@
                         </p>
                         <p style="margin: 10px 0 0 0; font-size: 12px; color: #666;">
                             最小利润/利润率条件可以设置为：关闭、必须满足、只要满足就提醒<br>
-                            特定品种条件可以设置为：关闭、启用<br>
+                            特定品种条件可以设置为：关闭、启用（格式：物品1,数量,价格;物品2,数量,价格）<br>
+                            特定品种条件判断：商品名称匹配 AND 商品数量≥设定数量 AND 商品价格≤设定价格（三个条件同时满足）<br>
                             黑名单功能：如果商品ID在黑名单中，该商品将被忽略并以橙红色高亮显示
                         </p>
                     </div>
