@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         德州扑克松紧凶玩家数据显示
+// @name         德州扑克松紧凶玩家数据显示-Supabase优化版
 // @namespace    http://tampermonkey.net/
-// @version      2.0
-// @description  根据游戏日志计算玩家VPIP/PFR/3BET/F3B/CB/BF等多项德州扑克统计数据
+// @version      2.2
+// @description  根据游戏日志计算玩家VPIP/PFR/3BET/F3B/CB/BF等多项德州扑克统计数据，支持Supabase云端存储
 // @author       shaowu[2691980]
 // @match        https://www.torn.com/page.php?sid=holdem*
 // @grant        GM_addStyle
@@ -10,6 +10,9 @@
 // @grant        GM_getValue
 // @grant        GM_deleteValue
 // @grant        GM_listValues
+// @grant        GM_xmlhttpRequest
+// @connect      supabase.co
+// @require      https://unpkg.com/@supabase/supabase-js@2.49.3/dist/umd/supabase.js
 // ==/UserScript==
 /* 数据会显示到网页右上角，手机显示估计暂不支持，后续会开发适配手机， */
 /* 20250524 发布2.0  重大功能更新
@@ -50,16 +53,68 @@ let raiseCount = 0; // 当前轮次加注次数
     /* 调试标志 - 设为true时输出详细日志 */
     const DEBUG_MODE = true;
 
+    // 配置参数
+    const CONFIG = {
+        SUPABASE_URL: 'https://ofqcrvrwynvfndlyvwxj.supabase.co',
+        SUPABASE_KEY: 'sb_publishable_UatkL70zLpCzgpmytIZs6g_BYvvF668',
+        UPLOAD: {
+            enabled: true,
+            interval: 30000, // 30秒上传间隔
+            batchSize: 50
+        }
+    };
+
     /* 存储游戏和玩家数据 */
-    let gameStats = {}; // 游戏统计数据：{gameId: {players: {playerId: {hands: 手数, vpip: 主动入池次数, pfr: 翻前加注次数, threeBet: 三次下注次数, foldToThreeBet: 面对三次下注弃牌次数, continuationBet: 持续下注次数, foldToContinuationBet: 面对持续下注弃牌次数, checkFold: 检查弃牌次数, raiseFold: 加注弃牌次数}}, startTime: 时间戳}}
-    let playerStats = {}; // 玩家累计统计数据：{playerId: {totalHands: 总手数, totalVpip: 总主动入池次数, totalPfr: 总翻前加注次数, totalThreeBet: 总三次下注次数, totalFoldToThreeBet: 总面对三次下注弃牌次数, totalContinuationBet: 总持续下注次数, totalFoldToContinuationBet: 总面对持续下注弃牌次数, totalCheckFold: 总检查弃牌次数, totalRaiseFold: 总加注弃牌次数, games: 参与游戏数}}
+    let gameStats = {}; // 游戏统计数据
+    let playerStats = {}; // 玩家累计统计数据
     let processed_ids = []; // 本局已处理的玩家ID列表，防止重复计算
-    let table_player = {}; // 桌面玩家状态：{playerId: {intable: true/false}}
+    let table_player = {}; // 桌面玩家状态
     let currentGameId = null; // 当前游戏唯一ID
     let gameCounter = 0; // 游戏计数器
     
+    // Supabase相关变量
+    let supabase = null;
+    let lastUploadTime = 0;
+    let cloudPlayerStats = {}; // 云端玩家数据缓存
+    let syncStatus = 'idle'; // 同步状态: idle, uploading, success, error
+    
     if(DEBUG_MODE) console.log('=== VPIP脚本启动 ===');
     if(DEBUG_MODE) console.log('验证processed_ids是否为数组:', Array.isArray(processed_ids));
+    
+    // Supabase 客户端管理
+    const SupabaseManager = (() => {
+        let client;
+
+        return {
+            initialize: async () => {
+                if (!window.supabase) {
+                    if(DEBUG_MODE) console.warn('Supabase SDK未加载，等待加载...');
+                    return false;
+                }
+                
+                try {
+                    client = window.supabase.createClient(
+                        CONFIG.SUPABASE_URL,
+                        CONFIG.SUPABASE_KEY,
+                        {
+                            realtime: { params: { eventsPerSecond: 2 } }
+                        }
+                    );
+                    if(DEBUG_MODE) console.log('✅ Supabase客户端初始化成功');
+                    return true;
+                } catch (error) {
+                    if(DEBUG_MODE) console.error('❌ Supabase客户端初始化失败:', error);
+                    return false;
+                }
+            },
+            getClient: () => client
+        };
+    })();
+
+    // 初始化Supabase客户端
+    function initSupabaseClient() {
+        return SupabaseManager.initialize();
+    }
     // 从本地存储加载数据
     try {
         const storedPlayerStats = GM_getValue('playerStats');
@@ -452,7 +507,7 @@ let raiseCount = 0; // 当前轮次加注次数
     }
 
     /* 显示统计面板 */
-    function showStats() {
+    async function showStats() {
         try {
             if(DEBUG_MODE) console.log('🔄 更新统计面板显示');
             
@@ -461,14 +516,28 @@ let raiseCount = 0; // 当前轮次加注次数
             
             if(DEBUG_MODE) console.log('当前在桌玩家:', tablePlayers);
             
-            // 按VPIP率排序显示
+            // 查询云端数据（如果有Supabase连接）
+            if (supabase && tablePlayers.length > 0) {
+                for (const playerId of tablePlayers) {
+                    if (!cloudPlayerStats[playerId]) {
+                        await queryPlayerFromSupabase(playerId);
+                    }
+                }
+            }
+            
+            // 按VPIP率排序显示（优先使用合并数据）
             const sortedPlayers = tablePlayers
-                .filter(id => playerStats[id])
+                .map(id => ({
+                    id,
+                    stats: mergePlayerData(id) || playerStats[id]
+                }))
+                .filter(player => player.stats)
                 .sort((a, b) => {
-                    const rateA = playerStats[a].totalHands > 0 ? playerStats[a].totalVpip / playerStats[a].totalHands : 0;
-                    const rateB = playerStats[b].totalHands > 0 ? playerStats[b].totalVpip / playerStats[b].totalHands : 0;
+                    const rateA = a.stats.totalHands > 0 ? a.stats.totalVpip / a.stats.totalHands : 0;
+                    const rateB = b.stats.totalHands > 0 ? b.stats.totalVpip / b.stats.totalHands : 0;
                     return rateB - rateA; // 按VPIP率降序排列
-                });
+                })
+                .map(player => player.id);
             
             let html = '';
             
@@ -478,6 +547,15 @@ let raiseCount = 0; // 当前轮次加注次数
             if(currentGameId) {
                 html += `<div style="font-size:11px;color:#666;margin-top:4px;">游戏: ${currentGameId.split('_')[1]}</div>`;
             }
+            
+            // 同步状态指示器
+            const syncIcon = {
+                'idle': '⚪',
+                'uploading': '🔄',
+                'success': '✅',
+                'error': '❌'
+            };
+            html += `<div style="font-size:10px;color:#666;margin-top:2px;">${syncIcon[syncStatus]} 云端同步: ${syncStatus}</div>`;
             html += '</div>';
             
             if (sortedPlayers.length === 0) {
@@ -485,7 +563,9 @@ let raiseCount = 0; // 当前轮次加注次数
             } else {
                 // 玩家统计卡片
                 for (const playerId of sortedPlayers) {
-                    const stat = playerStats[playerId];
+                    const stat = mergePlayerData(playerId) || playerStats[playerId];
+                    const isCloudData = cloudPlayerStats[playerId];
+                    
                     const vpipPercent = stat.totalHands > 0
                         ? (stat.totalVpip / stat.totalHands * 100).toFixed(1)
                         : "0.0";
@@ -543,9 +623,25 @@ let raiseCount = 0; // 当前轮次加注次数
                     
                     // 玩家名称和基本信息
                     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">';
-                    html += `<div style="font-weight:bold;color:#333;font-size:15px;">${playerId}</div>`;
+                    html += `<div style="font-weight:bold;color:#333;font-size:15px;">${playerId} ${isCloudData ? '☁️' : ''}</div>`;
                     html += `<div style="font-size:11px;color:#666;background:#e9e9e9;padding:3px5px;border-radius:3px;">局: ${stat.games}</div>`;
                     html += '</div>';
+                    
+                    // 云端数据信息
+                    if (isCloudData && stat.cloudTotalHands) {
+                        html += '<div style="font-size:9px;color:#4488ff;margin-bottom:5px;text-align:center;">';
+                        html += `云端: ${stat.cloudTotalHands}手 | ${stat.cloudGames}局`;
+                        if (stat.lastSync) {
+                            const syncTime = new Date(stat.lastSync).toLocaleString('zh-CN', {
+                                month: '2-digit',
+                                day: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            });
+                            html += ` | ${syncTime}`;
+                        }
+                        html += '</div>';
+                    }
                     
                     // 第一行：VPIP和PFR主要指标
                     html += '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">';
@@ -805,12 +901,182 @@ let raiseCount = 0; // 当前轮次加注次数
             GM_setValue('gameStats', JSON.stringify(gameStats));
             if(DEBUG_MODE) console.log('💾 玩家数据已保存，共', Object.keys(playerStats).length, '个玩家');
             if(DEBUG_MODE) console.log('💾 游戏数据已保存，共', Object.keys(gameStats).length, '局游戏');
+            
+            // 自动上传到Supabase
+            if (CONFIG.UPLOAD.enabled) {
+                uploadToSupabase();
+            }
         } catch (e) {
             console.error('❌ 保存数据时出错:', e);
         }
     }
+
+    // 上传数据到Supabase
+    async function uploadToSupabase() {
+        if (!supabase) {
+            if(DEBUG_MODE) console.warn('⚠️ Supabase客户端未初始化，跳过上传');
+            return;
+        }
+
+        const now = Date.now();
+        if (now - lastUploadTime < CONFIG.UPLOAD.interval) {
+            if(DEBUG_MODE) console.log('⏰ 上传间隔未到，跳过本次上传');
+            return;
+        }
+
+        syncStatus = 'uploading';
+        lastUploadTime = now;
+
+        try {
+            // 批量上传玩家统计数据
+            const playersToUpload = Object.keys(playerStats).slice(0, CONFIG.UPLOAD.batchSize);
+            
+            for (const playerId of playersToUpload) {
+                const stats = playerStats[playerId];
+                
+                const { error } = await supabase
+                    .from('poker_player_stats')
+                    .upsert({
+                        player_id: playerId,
+                        total_hands: stats.totalHands,
+                        total_vpip: stats.totalVpip,
+                        total_pfr: stats.totalPfr,
+                        total_three_bet: stats.totalThreeBet,
+                        total_fold_to_three_bet: stats.totalFoldToThreeBet,
+                        total_continuation_bet: stats.totalContinuationBet,
+                        total_fold_to_continuation_bet: stats.totalFoldToContinuationBet,
+                        total_check_fold: stats.totalCheckFold,
+                        total_raise_fold: stats.totalRaiseFold,
+                        games: stats.games,
+                        updated_at: new Date().toISOString()
+                    }, {
+                        onConflict: 'player_id'
+                    });
+
+                if (error) {
+                    if(DEBUG_MODE) console.error(`❌ 上传玩家 ${playerId} 数据失败:`, error);
+                } else {
+                    if(DEBUG_MODE) console.log(`✅ 玩家 ${playerId} 数据上传成功`);
+                }
+            }
+
+            // 上传游戏数据
+            const gamesToUpload = Object.keys(gameStats).slice(0, 10);
+            
+            for (const gameId of gamesToUpload) {
+                const game = gameStats[gameId];
+                
+                const { error } = await supabase
+                    .from('poker_games')
+                    .insert({
+                        game_id: gameId,
+                        start_time: new Date(game.startTime).toISOString(),
+                        end_time: game.endTime ? new Date(game.endTime).toISOString() : null,
+                        duration: game.duration || null,
+                        player_count: Object.keys(game.players || {}).length
+                    });
+
+                if (error) {
+                    if(DEBUG_MODE) console.error(`❌ 上传游戏 ${gameId} 数据失败:`, error);
+                } else {
+                    if(DEBUG_MODE) console.log(`✅ 游戏 ${gameId} 数据上传成功`);
+                }
+            }
+
+            syncStatus = 'success';
+            if(DEBUG_MODE) console.log('🎉 数据上传完成');
+
+        } catch (error) {
+            syncStatus = 'error';
+            if(DEBUG_MODE) console.error('❌ 上传数据到Supabase失败:', error);
+        }
+    }
+
+    // 从Supabase查询玩家数据
+    async function queryPlayerFromSupabase(playerId) {
+        if (!supabase) {
+            if(DEBUG_MODE) console.warn('⚠️ Supabase客户端未初始化，无法查询');
+            return null;
+        }
+
+        try {
+            const { data, error } = await supabase
+                .from('poker_player_stats')
+                .select('*')
+                .eq('player_id', playerId)
+                .single();
+
+            if (error) {
+                if(DEBUG_MODE) console.error(`❌ 查询玩家 ${playerId} 数据失败:`, error);
+                return null;
+            }
+
+            if (data) {
+                // 转换数据格式以兼容现有代码
+                cloudPlayerStats[playerId] = {
+                    totalHands: data.total_hands,
+                    totalVpip: data.total_vpip,
+                    totalPfr: data.total_pfr,
+                    totalThreeBet: data.total_three_bet,
+                    totalFoldToThreeBet: data.total_fold_to_three_bet,
+                    totalContinuationBet: data.total_continuation_bet,
+                    totalFoldToContinuationBet: data.total_fold_to_continuation_bet,
+                    totalCheckFold: data.total_check_fold,
+                    totalRaiseFold: data.total_raise_fold,
+                    games: data.games,
+                    lastUpdated: data.updated_at
+                };
+                
+                if(DEBUG_MODE) console.log(`✅ 从云端获取玩家 ${playerId} 数据成功`);
+                return cloudPlayerStats[playerId];
+            }
+
+        } catch (error) {
+            if(DEBUG_MODE) console.error(`❌ 查询玩家 ${playerId} 数据异常:`, error);
+        }
+
+        return null;
+    }
+
+    // 合并本地和云端数据
+    function mergePlayerData(playerId) {
+        const localData = playerStats[playerId];
+        const cloudData = cloudPlayerStats[playerId];
+
+        if (!cloudData) {
+            return localData;
+        }
+
+        if (!localData) {
+            return cloudData;
+        }
+
+        // 简单合并策略：优先使用本地数据，但补充云端的总手数信息
+        return {
+            ...localData,
+            cloudTotalHands: cloudData.totalHands,
+            cloudGames: cloudData.games,
+            lastSync: cloudData.lastUpdated
+        };
+    }
     /* 主初始化函数 */
-    function main() {
+    async function main() {
+        // 初始化Supabase客户端
+        const supabaseReady = await initSupabaseClient();
+        if (supabaseReady) {
+            supabase = SupabaseManager.getClient();
+            if(DEBUG_MODE) console.log('🌐 Supabase已连接，启用云端同步');
+            
+            // 启动定时上传
+            setInterval(() => {
+                if (CONFIG.UPLOAD.enabled) {
+                    uploadToSupabase();
+                }
+            }, CONFIG.UPLOAD.interval);
+        } else {
+            if(DEBUG_MODE) console.log('📱 仅使用本地存储模式');
+        }
+        
         initObserver();
         setInterval(() => showStats(), 2000); // 保留定时更新显示
     }
