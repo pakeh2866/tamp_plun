@@ -473,10 +473,10 @@ let raiseCount = 0; // 当前轮次加注次数
             let html = '';
             
             // 面板标题
-            html += '<div style="text-align:center;margin-bottom:12px;border-bottom:2px solid #333;padding-bottom:8px;">';
-            html += '<h3 style="margin:0;color:#333;font-size:16px;">🎰 德州扑克统计面板</h3>';
+            html += '<div style="text-align:center;margin-bottom:12px;border-bottom:1px solid #333;padding-bottom:8px;">';
+            html += '<h3 style="margin:0;color:#333;font-size:17px;">🎰 德州扑克统计</h3>';
             if(currentGameId) {
-                html += `<div style="font-size:11px;color:#666;margin-top:4px;">当前游戏: ${currentGameId}</div>`;
+                html += `<div style="font-size:11px;color:#666;margin-top:4px;">游戏: ${currentGameId.split('_')[1]}</div>`;
             }
             html += '</div>';
             
@@ -539,84 +539,87 @@ let raiseCount = 0; // 当前轮次加注次数
                     }
                     
                     // 玩家卡片
-                    html += '<div style="margin-bottom:12px;padding:12px;border:1px solid #ddd;border-radius:8px;background:#f9f9f9;box-shadow:0 2px 4px rgba(0,0,0,0.1);">';
+                    html += '<div style="margin-bottom:12px;padding:12px;border:1px solid #ddd;border-radius:6px;background:#f9f9f9;box-shadow:0 1px 3px rgba(0,0,0,0.1);">';
                     
                     // 玩家名称和基本信息
                     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">';
-                    html += `<div style="font-weight:bold;color:#333;font-size:14px;">${playerId}</div>`;
-                    html += `<div style="font-size:11px;color:#666;background:#e9e9e9;padding:2px6px;border-radius:3px;">游戏数: ${stat.games}</div>`;
+                    html += `<div style="font-weight:bold;color:#333;font-size:15px;">${playerId}</div>`;
+                    html += `<div style="font-size:11px;color:#666;background:#e9e9e9;padding:3px5px;border-radius:3px;">局: ${stat.games}</div>`;
                     html += '</div>';
                     
                     // 第一行：VPIP和PFR主要指标
-                    html += '<div style="display:flex;justify-content:space-between;margin-bottom:8px;">';
-                    html += '<div style="flex:1;text-align:center;padding:6px;background:white;border-radius:6px;margin-right:3px;border:1px solid #e0e0e0;">';
-                    html += `<div style="font-size:11px;color:#666;margin-bottom:2px;font-weight:bold;">VPIP</div>`;
+                    html += '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">';
+                    html += '<div style="flex:1;text-align:center;padding:5px;background:white;border-radius:4px;margin-right:4px;border:1px solid #e0e0e0;">';
+                    html += `<div style="font-size:12px;color:#666;margin-bottom:2px;font-weight:bold;">VPIP</div>`;
                     html += `<div style="font-size:16px;font-weight:bold;color:${vpipColor};margin-bottom:2px;">${vpipPercent}%</div>`;
-                    html += `<div style="font-size:9px;color:${vpipColor};background:${vpipColor}20;padding:1px3px;border-radius:2px;">${vpipType}</div>`;
                     html += '</div>';
-                    html += '<div style="flex:1;text-align:center;padding:6px;background:white;border-radius:6px;margin-left:3px;border:1px solid #e0e0e0;">';
-                    html += `<div style="font-size:11px;color:#666;margin-bottom:2px;font-weight:bold;">PFR</div>`;
+                    html += '<div style="flex:1;text-align:center;padding:5px;background:white;border-radius:4px;margin-left:4px;border:1px solid #e0e0e0;">';
+                    html += `<div style="font-size:12px;color:#666;margin-bottom:2px;font-weight:bold;">PFR</div>`;
                     html += `<div style="font-size:16px;font-weight:bold;color:${pfrColor};margin-bottom:2px;">${pfrPercent}%</div>`;
-                    html += `<div style="font-size:9px;color:${pfrColor};background:${pfrColor}20;padding:1px3px;border-radius:2px;">${pfrType}</div>`;
                     html += '</div>';
+                    html += '</div>';
+                    
+                    // VPIP和PFR评价行
+                    html += '<div style="display:flex;justify-content:space-between;margin-bottom:8px;">';
+                    html += `<div style="flex:1;text-align:center;font-size:10px;color:${vpipColor};background:${vpipColor}20;padding:2px4px;border-radius:3px;margin-right:4px;">${vpipType}</div>`;
+                    html += `<div style="flex:1;text-align:center;font-size:10px;color:${pfrColor};background:${pfrColor}20;padding:2px4px;border-radius:3px;margin-left:4px;">${pfrType}</div>`;
                     html += '</div>';
                     
                     // 第二行：3BET和F3B指标
-                    html += '<div style="display:flex;justify-content:space-between;margin-bottom:8px;">';
-                    html += '<div style="flex:1;text-align:center;padding:6px;background:white;border-radius:6px;margin-right:3px;border:1px solid #e0e0e0;">';
-                    html += `<div style="font-size:11px;color:#666;margin-bottom:2px;font-weight:bold;">3BET</div>`;
+                    html += '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">';
+                    html += '<div style="flex:1;text-align:center;padding:5px;background:white;border-radius:4px;margin-right:4px;border:1px solid #e0e0e0;">';
+                    html += `<div style="font-size:12px;color:#666;margin-bottom:2px;font-weight:bold;">3BET</div>`;
                     html += `<div style="font-size:16px;font-weight:bold;color:${threeBetColor};margin-bottom:2px;">${threeBetPercent}%</div>`;
-                    html += `<div style="font-size:9px;color:${threeBetColor};background:${threeBetColor}20;padding:1px3px;border-radius:2px;">${threeBetType}</div>`;
                     html += '</div>';
-                    html += '<div style="flex:1;text-align:center;padding:6px;background:white;border-radius:6px;margin-left:3px;border:1px solid #e0e0e0;">';
-                    html += `<div style="font-size:11px;color:#666;margin-bottom:2px;font-weight:bold;">F3B</div>`;
+                    html += '<div style="flex:1;text-align:center;padding:5px;background:white;border-radius:4px;margin-left:4px;border:1px solid #e0e0e0;">';
+                    html += `<div style="font-size:12px;color:#666;margin-bottom:2px;font-weight:bold;">F3B</div>`;
                     html += `<div style="font-size:16px;font-weight:bold;color:${foldToThreeBetColor};margin-bottom:2px;">${foldToThreeBetPercent}%</div>`;
-                    html += `<div style="font-size:9px;color:${foldToThreeBetColor};background:${foldToThreeBetColor}20;padding:1px3px;border-radius:2px;">${foldToThreeBetType}</div>`;
                     html += '</div>';
                     html += '</div>';
                     
-                    // 第三行：CB和BF指标
+                    // 3BET和F3B评价行
                     html += '<div style="display:flex;justify-content:space-between;margin-bottom:8px;">';
-                    html += '<div style="flex:1;text-align:center;padding:6px;background:white;border-radius:6px;margin-right:3px;border:1px solid #e0e0e0;">';
-                    html += `<div style="font-size:11px;color:#666;margin-bottom:2px;font-weight:bold;">CB</div>`;
+                    html += `<div style="flex:1;text-align:center;font-size:10px;color:${threeBetColor};background:${threeBetColor}20;padding:2px4px;border-radius:3px;margin-right:4px;">${threeBetType}</div>`;
+                    html += `<div style="flex:1;text-align:center;font-size:10px;color:${foldToThreeBetColor};background:${foldToThreeBetColor}20;padding:2px4px;border-radius:3px;margin-left:4px;">${foldToThreeBetType}</div>`;
+                    html += '</div>';
+                    
+                    // 第三行：CB和BF指标
+                    html += '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">';
+                    html += '<div style="flex:1;text-align:center;padding:5px;background:white;border-radius:4px;margin-right:4px;border:1px solid #e0e0e0;">';
+                    html += `<div style="font-size:12px;color:#666;margin-bottom:2px;font-weight:bold;">CB</div>`;
                     html += `<div style="font-size:16px;font-weight:bold;color:${continuationBetColor};margin-bottom:2px;">${continuationBetPercent}%</div>`;
-                    html += `<div style="font-size:9px;color:${continuationBetColor};background:${continuationBetColor}20;padding:1px3px;border-radius:2px;">${continuationBetType}</div>`;
                     html += '</div>';
-                    html += '<div style="flex:1;text-align:center;padding:6px;background:white;border-radius:6px;margin-left:3px;border:1px solid #e0e0e0;">';
-                    html += `<div style="font-size:11px;color:#666;margin-bottom:2px;font-weight:bold;">BF</div>`;
+                    html += '<div style="flex:1;text-align:center;padding:5px;background:white;border-radius:4px;margin-left:4px;border:1px solid #e0e0e0;">';
+                    html += `<div style="font-size:12px;color:#666;margin-bottom:2px;font-weight:bold;">BF</div>`;
                     html += `<div style="font-size:16px;font-weight:bold;color:${foldToContinuationBetColor};margin-bottom:2px;">${foldToContinuationBetPercent}%</div>`;
-                    html += `<div style="font-size:9px;color:${foldToContinuationBetColor};background:${foldToContinuationBetColor}20;padding:1px3px;border-radius:2px;">${foldToContinuationBetType}</div>`;
                     html += '</div>';
+                    html += '</div>';
+                    
+                    // CB和BF评价行
+                    html += '<div style="display:flex;justify-content:space-between;margin-bottom:8px;">';
+                    html += `<div style="flex:1;text-align:center;font-size:10px;color:${continuationBetColor};background:${continuationBetColor}20;padding:2px4px;border-radius:3px;margin-right:4px;">${continuationBetType}</div>`;
+                    html += `<div style="flex:1;text-align:center;font-size:10px;color:${foldToContinuationBetColor};background:${foldToContinuationBetColor}20;padding:2px4px;border-radius:3px;margin-left:4px;">${foldToContinuationBetType}</div>`;
                     html += '</div>';
                     
                     // 详细数据
                     html += '<div style="display:flex;justify-content:space-between;font-size:10px;color:#666;margin-bottom:8px;flex-wrap:wrap;">';
-                    html += `<div style="width:33%;">手数: <span style="font-weight:bold;color:#333;">${stat.totalHands}</span></div>`;
-                    html += `<div style="width:33%;">VPIP: <span style="font-weight:bold;color:#333;">${stat.totalVpip}</span></div>`;
-                    html += `<div style="width:33%;">PFR: <span style="font-weight:bold;color:#333;">${stat.totalPfr}</span></div>`;
-                    html += `<div style="width:33%;">3BET: <span style="font-weight:bold;color:#333;">${stat.totalThreeBet}</span></div>`;
-                    html += `<div style="width:33%;">F3B: <span style="font-weight:bold;color:#333;">${stat.totalFoldToThreeBet}</span></div>`;
-                    html += `<div style="width:33%;">CB: <span style="font-weight:bold;color:#333;">${stat.totalContinuationBet}</span></div>`;
+                    html += `<div style="width:33%;">手: <span style="font-weight:bold;color:#333;">${stat.totalHands}</span></div>`;
+                    html += `<div style="width:33%;">V: <span style="font-weight:bold;color:#333;">${stat.totalVpip}</span></div>`;
+                    html += `<div style="width:33%;">P: <span style="font-weight:bold;color:#333;">${stat.totalPfr}</span></div>`;
+                    html += `<div style="width:33%;">3: <span style="font-weight:bold;color:#333;">${stat.totalThreeBet}</span></div>`;
+                    html += `<div style="width:33%;">F: <span style="font-weight:bold;color:#333;">${stat.totalFoldToThreeBet}</span></div>`;
+                    html += `<div style="width:33%;">C: <span style="font-weight:bold;color:#333;">${stat.totalContinuationBet}</span></div>`;
                     html += '</div>';
-                    
-                    // 当前游戏数据
-                    if(currentGameHands > 0) {
-                        html += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid #eee;font-size:9px;color:#888;background:#f5f5f5;padding:6px;border-radius:4px;">';
-                        html += `<div style="font-weight:bold;margin-bottom:3px;color:#666;">本局数据</div>`;
-                        html += `<div>手数: ${currentGameHands} | VPIP: ${currentGameVpip} | PFR: ${currentGamePfr}</div>`;
-                        html += `<div>3BET: ${currentGameThreeBet} | F3B: ${currentGameFoldToThreeBet} | CB: ${currentGameContinuationBet}</div>`;
-                        html += '</div>';
-                    }
                     
                     html += '</div>';
                 }
             }
             
             // 底部信息
-            html += '<div style="margin-top:12px;padding-top:10px;border-top:1px solid #ddd;font-size:9px;color:#999;text-align:center;">';
-            html += `<div>在桌玩家: ${sortedPlayers.length} | 总游戏数: ${Object.keys(gameStats).length}</div>`;
-            html += '<div style="margin-top:2px;">VPIP=主动入池率 | PFR=翻前加注率 | 3BET=三次下注率 | F3B=面对三次下注弃牌率</div>';
-            html += '<div style="margin-top:2px;">CB=持续下注率 | BF=面对下注弃牌率</div>';
+            html += '<div style="margin-top:12px;padding-top:10px;border-top:1px solid #ddd;font-size:10px;color:#999;text-align:center;">';
+            html += `<div>玩家: ${sortedPlayers.length} | 游戏: ${Object.keys(gameStats).length}</div>`;
+            html += '<div style="margin-top:3px;">VPIP=入池率 | PFR=加注率 | 3BET=三次下注 | F3B=面对三次弃牌</div>';
+            html += '<div style="margin-top:3px;">CB=持续下注 | BF=面对下注弃牌</div>';
             html += '</div>';
 
             container.innerHTML = html;
@@ -643,18 +646,19 @@ let raiseCount = 0; // 当前轮次加注次数
         background: white;
         padding: 15px;
         border: 2px solid #333;
-        border-radius: 12px;
+        border-radius: 8px;
         box-shadow: 0 8px 25px rgba(0,0,0,0.15);
         z-index: 9999;
         font-family: 'Segoe UI', Arial, sans-serif;
         color: #333;
         cursor: move;
         user-select: none;
-        min-width: 300px;
-        max-width: 350px;
-        font-size: 12px;
+        width: 320px;
+        max-height: 500px;
+        font-size: 14px;
         line-height: 1.4;
         background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        overflow-y: auto;
     `;
 
     // 读取并应用已保存的位置（如果存在）
@@ -835,9 +839,9 @@ let raiseCount = 0; // 当前轮次加注次数
         if (pfrPercent < 15) return '#ff4444';      // 红色 - 被动
         if (pfrPercent < 20) return '#ff8800';      // 橙色 - 较被动
         if (pfrPercent < 25) return '#ffcc00';      // 黄色 - 正常
-        if (pfrPercent < 30) return '#88cc00';      // 黄绿 - 较主动
-        if (pfrPercent < 35) return '#44cc44';      // 绿色 - 主动
-        return '#00aa00';                            // 深绿 - 极主动
+        if (pfrPercent < 30) return '#66bb00';      // 更深的绿 - 较主动
+        if (pfrPercent < 35) return '#339900';      // 深绿 - 主动
+        return '#006600';                            // 很深的绿 - 极主动
     }
     
     function getPfrType(pfrPercent) {
@@ -856,9 +860,9 @@ let raiseCount = 0; // 当前轮次加注次数
         if (threeBetPercent < 10) return '#ff4444';     // 红色 - 很少3bet
         if (threeBetPercent < 15) return '#ff8800';     // 橙色 - 较少3bet
         if (threeBetPercent < 20) return '#ffcc00';     // 黄色 - 正常3bet
-        if (threeBetPercent < 25) return '#88cc00';     // 黄绿 - 较多3bet
-        if (threeBetPercent < 30) return '#44cc44';     // 绿色 - 很多3bet
-        return '#00aa00';                               // 深绿 - 极多3bet
+        if (threeBetPercent < 25) return '#66bb00';     // 更深的绿 - 较多3bet
+        if (threeBetPercent < 30) return '#339900';     // 深绿 - 很多3bet
+        return '#006600';                               // 很深的绿 - 极多3bet
     }
     
     function getThreeBetType(threeBetPercent) {
@@ -873,9 +877,9 @@ let raiseCount = 0; // 当前轮次加注次数
     
     // F3B颜色和类型判断函数
     function getFoldToThreeBetColor(foldToThreeBetPercent) {
-        if (foldToThreeBetPercent < 30) return '#00aa00';  // 深绿 - 很少弃牌
-        if (foldToThreeBetPercent < 40) return '#44cc44';  // 绿色 - 较少弃牌
-        if (foldToThreeBetPercent < 50) return '#88cc00';  // 黄绿 - 正常弃牌
+        if (foldToThreeBetPercent < 30) return '#006600';  // 很深的绿 - 很少弃牌
+        if (foldToThreeBetPercent < 40) return '#339900';  // 深绿 - 较少弃牌
+        if (foldToThreeBetPercent < 50) return '#66bb00';  // 更深的绿 - 正常弃牌
         if (foldToThreeBetPercent < 60) return '#ffcc00';  // 黄色 - 较多弃牌
         if (foldToThreeBetPercent < 70) return '#ff8800';  // 橙色 - 很多弃牌
         if (foldToThreeBetPercent < 80) return '#ff4444';  // 红色 - 极多弃牌
@@ -898,9 +902,9 @@ let raiseCount = 0; // 当前轮次加注次数
         if (continuationBetPercent < 40) return '#ff4444';     // 红色 - 很少CB
         if (continuationBetPercent < 50) return '#ff8800';     // 橙色 - 较少CB
         if (continuationBetPercent < 60) return '#ffcc00';     // 黄色 - 正常CB
-        if (continuationBetPercent < 70) return '#88cc00';     // 黄绿 - 较多CB
-        if (continuationBetPercent < 80) return '#44cc44';     // 绿色 - 很多CB
-        return '#00aa00';                                       // 深绿 - 极多CB
+        if (continuationBetPercent < 70) return '#66bb00';     // 更深的绿 - 较多CB
+        if (continuationBetPercent < 80) return '#339900';     // 深绿 - 很多CB
+        return '#006600';                                       // 很深的绿 - 极多CB
     }
     
     function getContinuationBetType(continuationBetPercent) {
@@ -915,9 +919,9 @@ let raiseCount = 0; // 当前轮次加注次数
     
     // BF颜色和类型判断函数
     function getFoldToContinuationBetColor(foldToContinuationBetPercent) {
-        if (foldToContinuationBetPercent < 30) return '#00aa00';  // 深绿 - 很少弃牌
-        if (foldToContinuationBetPercent < 40) return '#44cc44';  // 绿色 - 较少弃牌
-        if (foldToContinuationBetPercent < 50) return '#88cc00';  // 黄绿 - 正常弃牌
+        if (foldToContinuationBetPercent < 30) return '#006600';  // 很深的绿 - 很少弃牌
+        if (foldToContinuationBetPercent < 40) return '#339900';  // 深绿 - 较少弃牌
+        if (foldToContinuationBetPercent < 50) return '#66bb00';  // 更深的绿 - 正常弃牌
         if (foldToContinuationBetPercent < 60) return '#ffcc00';  // 黄色 - 较多弃牌
         if (foldToContinuationBetPercent < 70) return '#ff8800';  // 橙色 - 很多弃牌
         if (foldToContinuationBetPercent < 80) return '#ff4444';  // 红色 - 极多弃牌
