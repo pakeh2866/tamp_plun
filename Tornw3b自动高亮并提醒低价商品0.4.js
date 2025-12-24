@@ -226,7 +226,7 @@
                         <strong>只要满足就提醒</strong>：满足此条件即可提醒<br><br>
                         <strong>特定品种条件选项：</strong><br>
                         <strong>关闭</strong>：不使用特定品种条件<br>
-                        <strong>启用</strong>：只有满足特定品种条件的商品才会被提醒，其他条件将被忽略
+                        <strong>启用</strong>：特定品种中的商品需先满足特定品种条件，其他商品直接判断其他条件
                     </p>
                 </div>
                 
@@ -266,7 +266,7 @@
                     </div>
                     <small style="color: #666; font-size: 12px;">格式：物品1,数量,价格;物品2,数量,价格 例如：Xanax,3,810000;Panda Plushie,3,58000</small>
                     <p style="margin: 5px 0 0 0; font-size: 12px; color: #ff6b6b; line-height: 1.4;">
-                        <strong>注意</strong>：启用后，只有满足特定品种条件的商品才会被提醒，其他条件将被忽略
+                        <strong>注意</strong>：启用后，特定品种中的商品需先满足特定品种条件，其他商品直接判断其他条件
                     </p>
                 </div>
                 
@@ -460,15 +460,16 @@
             // 检查特定品种条件是否启用
             const specificItemsEnabled = CONFIG.specificItemsOption === 1;
             
-            // 如果特定品种条件启用，则只判断特定品种条件
-            if (specificItemsEnabled) {
-                if (!CONFIG.specificItems || !itemName || itemName === 'N/A') {
-                    return { highlight: false, reasons: [] };
-                }
-                
+            // 检查是否是特定品种中的商品
+            let isSpecificItem = false;
+            let specificItemConditionMet = false;
+            
+            if (specificItemsEnabled && CONFIG.specificItems && itemName && itemName !== 'N/A') {
                 const specificItemsList = parseSpecificItems(CONFIG.specificItems);
+                
                 for (const item of specificItemsList) {
                     if (itemName.toLowerCase().includes(item.name.toLowerCase())) {
+                        isSpecificItem = true;
                         const itemPrice = parseFloat(price.replace(/,/g, ''));
                         // 使用传入的数量参数
                         const currentQuantity = quantity ? parseFloat(quantity.replace(/,/g, '')) : 0;
@@ -476,15 +477,15 @@
                         // 同时判断价格和数量条件（且关系）
                         if (!isNaN(itemPrice) && !isNaN(currentQuantity) &&
                             itemPrice <= item.price && currentQuantity >= item.quantity) {
-                            return {
-                                highlight: true,
-                                reasons: ['特定品种']
-                            };
+                            specificItemConditionMet = true;
                         }
+                        break;
                     }
                 }
-                
-                // 特定品种条件启用但不满足，不高亮
+            }
+            
+            // 如果是特定品种中的商品但未满足特定品种条件，不高亮
+            if (isSpecificItem && !specificItemConditionMet) {
                 return { highlight: false, reasons: [] };
             }
             
@@ -524,23 +525,31 @@
             // 收集所有满足的条件
             const satisfiedConditions = enabledConditions.filter(c => c.satisfied);
             
+            // 收集所有满足的条件，包括特定品种条件
+            const allSatisfiedReasons = satisfiedConditions.map(c => c.name);
+            
+            // 如果是特定品种且满足条件，添加到原因中
+            if (isSpecificItem && specificItemConditionMet) {
+                allSatisfiedReasons.push('特定品种');
+            }
+            
             // 如果有"必须满足"的条件且全部满足，高亮
             if (requiredConditions.length > 0 && allRequiredSatisfied) {
                 return {
                     highlight: true,
-                    reasons: satisfiedConditions.map(c => c.name)
+                    reasons: allSatisfiedReasons
                 };
             }
             
             // 如果没有任何条件满足，不高亮
-            if (satisfiedConditions.length === 0) {
+            if (satisfiedConditions.length === 0 && !specificItemConditionMet) {
                 return { highlight: false, reasons: [] };
             }
             
             // 返回高亮结果和满足的条件名称
             return {
                 highlight: true,
-                reasons: satisfiedConditions.map(c => c.name)
+                reasons: allSatisfiedReasons
             };
         }
 
@@ -1460,7 +1469,7 @@
                             基本逻辑 = 满足所有"必须满足"的条件 AND 至少满足一个"只要满足就提醒"的条件
                         </p>
                         <p style="margin: 10px 0 0 0; font-size: 12px; color: #ff6b6b;">
-                            <strong>特殊规则</strong>：如果启用了特定品种条件，则只有满足该条件的商品才会被提醒，其他条件将被忽略
+                            <strong>特殊规则</strong>：如果启用了特定品种条件，则特定品种中的商品需先满足特定品种条件，其他商品直接判断其他条件
                         </p>
                         <p style="margin: 10px 0 0 0; font-size: 12px; color: #666;">
                             最小利润/利润率条件可以设置为：关闭、必须满足、只要满足就提醒<br>
@@ -1504,7 +1513,7 @@
                         <li>每个条件可以单独设置为"关闭"、"必须满足"或"只要满足就提醒"</li>
                         <li>如果设置了"必须满足"的条件，则必须同时满足所有这些条件才会高亮</li>
                         <li>如果没有任何"必须满足"的条件，则满足任意一个"只要满足就提醒"的条件即可高亮</li>
-                        <li><strong>重要</strong>：如果启用了特定品种条件，则只有满足该条件的商品才会被提醒，其他条件将被忽略</li>
+                        <li><strong>重要</strong>：如果启用了特定品种条件，则特定品种中的商品需先满足特定品种条件，其他商品直接判断其他条件</li>
                         <li>特定品种条件已简化为只有"关闭"和"启用"两个选项，启用时具有最高优先级</li>
                         <li>符合高亮条件的商品会在原页面中以黄色背景显示</li>
                         <li>特定品种支持模糊匹配，输入物品名称的部分关键词即可</li>
