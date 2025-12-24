@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>德州扑克玩家数据查询</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .search-section {
+            padding: 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .search-form {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .search-button {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .search-button:hover {
+            transform: translateY(-2px);
+        }
+
+        .search-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .config-section {
+            padding: 20px 30px;
+            background: #fff3cd;
+            border-bottom: 1px solid #ffeaa7;
+        }
+
+        .config-form {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .config-input {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .config-button {
+            grid-column: span 2;
+            padding: 10px 20px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .results-section {
+            padding: 30px;
+            min-height: 200px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .player-card {
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s;
+        }
+
+        .player-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .player-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f8f9fa;
+        }
+
+        .player-name {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .player-games {
+            background: #e9ecef;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            color: #495057;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #6c757d;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .stat-value {
+            font-size: 1.8em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-type {
+            font-size: 0.8em;
+            padding: 4px 8px;
+            border-radius: 12px;
+            color: white;
+        }
+
+        .detailed-stats {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 10px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .detailed-stat {
+            text-align: center;
+        }
+
+        .detailed-label {
+            font-size: 0.8em;
+            color: #6c757d;
+            margin-bottom: 3px;
+        }
+
+        .detailed-value {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 60px;
+            color: #6c757d;
+        }
+
+        .no-results i {
+            font-size: 4em;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        /* 颜色类 */
+        .vpip-very-tight { color: #ff4444; }
+        .vpip-tight { color: #ff8800; }
+        .vpip-normal { color: #ffcc00; }
+        .vpip-loose { color: #4488ff; }
+        .vpip-very-loose { color: #00ccff; }
+        .vpip-extremely-loose { color: #44ff44; }
+
+        .pfr-very-passive { color: #cc0000; }
+        .pfr-passive { color: #ff4444; }
+        .pfr-somewhat-passive { color: #ff8800; }
+        .pfr-normal { color: #ffcc00; }
+        .pfr-somewhat-aggressive { color: #66bb00; }
+        .pfr-aggressive { color: #339900; }
+        .pfr-very-aggressive { color: #006600; }
+
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .detailed-stats {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            
+            .config-form {
+                grid-template-columns: 1fr;
+            }
+            
+            .config-button {
+                grid-column: span 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎰 德州扑克玩家数据查询</h1>
+            <p>通过玩家ID查询VPIP、PFR、3BET等统计数据</p>
+        </div>
+
+        <div class="config-section">
+            <h3>Supabase配置</h3>
+            <form class="config-form" id="configForm">
+                <input type="text" class="config-input" id="supabaseUrl" placeholder="Supabase项目URL">
+                <input type="text" class="config-input" id="supabaseKey" placeholder="Supabase匿名密钥">
+                <button type="submit" class="config-button">保存配置</button>
+            </form>
+        </div>
+
+        <div class="search-section">
+            <form class="search-form" id="searchForm">
+                <input 
+                    type="text" 
+                    class="search-input" 
+                    id="playerIdInput" 
+                    placeholder="输入玩家ID（精确匹配）"
+                    required
+                >
+                <button type="submit" class="search-button" id="searchButton">
+                    查询数据
+                </button>
+            </form>
+        </div>
+
+        <div class="results-section" id="resultsSection">
+            <div class="no-results">
+                <div style="font-size: 4em; margin-bottom: 20px; opacity: 0.5;">🔍</div>
+                <h3>输入玩家ID开始查询</h3>
+                <p>支持查询VPIP、PFR、3BET、F3B、CB、BF等统计数据</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class PokerStatsQuery {
+            constructor() {
+                this.supabaseUrl = localStorage.getItem('supabaseUrl') || '';
+                this.supabaseKey = localStorage.getItem('supabaseKey') || '';
+                this.init();
+            }
+
+            init() {
+                // 加载保存的配置
+                if (this.supabaseUrl) {
+                    document.getElementById('supabaseUrl').value = this.supabaseUrl;
+                }
+                if (this.supabaseKey) {
+                    document.getElementById('supabaseKey').value = this.supabaseKey;
+                }
+
+                // 绑定事件
+                document.getElementById('configForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.saveConfig();
+                });
+
+                document.getElementById('searchForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.queryPlayer();
+                });
+            }
+
+            saveConfig() {
+                this.supabaseUrl = document.getElementById('supabaseUrl').value.trim();
+                this.supabaseKey = document.getElementById('supabaseKey').value.trim();
+
+                localStorage.setItem('supabaseUrl', this.supabaseUrl);
+                localStorage.setItem('supabaseKey', this.supabaseKey);
+
+                alert('配置已保存！');
+            }
+
+            async queryPlayer() {
+                const playerId = document.getElementById('playerIdInput').value.trim();
+                if (!playerId) return;
+
+                if (!this.supabaseUrl || !this.supabaseKey) {
+                    this.showError('请先配置Supabase连接信息');
+                    return;
+                }
+
+                this.showLoading();
+
+                try {
+                    const data = await this.fetchPlayerStats(playerId);
+                    if (data) {
+                        this.displayPlayerData(data);
+                    } else {
+                        this.showNoResults(playerId);
+                    }
+                } catch (error) {
+                    this.showError('查询失败: ' + error.message);
+                }
+            }
+
+            async fetchPlayerStats(playerId) {
+                const url = `${this.supabaseUrl}/rest/v1/player_stats_view?player_id=eq.${encodeURIComponent(playerId)}`;
+                
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'apikey': this.supabaseKey,
+                        'Authorization': `Bearer ${this.supabaseKey}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                return data.length > 0 ? data[0] : null;
+            }
+
+            showLoading() {
+                document.getElementById('resultsSection').innerHTML = `
+                    <div class="loading">
+                        <div style="font-size: 2em; margin-bottom: 20px;">⏳</div>
+                        <h3>正在查询数据...</h3>
+                    </div>
+                `;
+            }
+
+            showError(message) {
+                document.getElementById('resultsSection').innerHTML = `
+                    <div class="error">
+                        <strong>错误:</strong> ${message}
+                    </div>
+                `;
+            }
+
+            showNoResults(playerId) {
+                document.getElementById('resultsSection').innerHTML = `
+                    <div class="no-results">
+                        <div style="font-size: 4em; margin-bottom: 20px; opacity: 0.5;">❌</div>
+                        <h3>未找到玩家数据</h3>
+                        <p>玩家ID "${playerId}" 暂无统计数据</p>
+                    </div>
+                `;
+            }
+
+            displayPlayerData(data) {
+                const vpipColor = this.getVpipColor(data.vpip_percentage);
+                const pfrColor = this.getPfrColor(data.pfr_percentage);
+                const threeBetColor = this.getThreeBetColor(data.three_bet_percentage);
+                const foldToThreeBetColor = this.getFoldToThreeBetColor(data.fold_to_three_bet_percentage);
+                const continuationBetColor = this.getContinuationBetColor(data.continuation_bet_percentage);
+                const foldToContinuationBetColor = this.getFoldToContinuationBetColor(data.fold_to_continuation_bet_percentage);
+
+                const vpipType = this.getPlayerType(data.vpip_percentage);
+                const pfrType = this.getPfrType(data.pfr_percentage);
+                const threeBetType = this.getThreeBetType(data.three_bet_percentage);
+                const foldToThreeBetType = this.getFoldToThreeBetType(data.fold_to_three_bet_percentage);
+                const continuationBetType = this.getContinuationBetType(data.continuation_bet_percentage);
+                const foldToContinuationBetType = this.getFoldToContinuationBetType(data.fold_to_continuation_bet_percentage);
+
+                const html = `
+                    <div class="player-card">
+                        <div class="player-header">
+                            <div class="player-name">${data.player_id}</div>
+                            <div class="player-games">局数: ${data.games}</div>
+                        </div>
+
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <div class="stat-label">VPIP</div>
+                                <div class="stat-value" style="color: ${vpipColor}">${data.vpip_percentage}%</div>
+                                <div class="stat-type" style="background: ${vpipColor}">${vpipType}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">PFR</div>
+                                <div class="stat-value" style="color: ${pfrColor}">${data.pfr_percentage}%</div>
+                                <div class="stat-type" style="background: ${pfrColor}">${pfrType}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">3BET</div>
+                                <div class="stat-value" style="color: ${threeBetColor}">${data.three_bet_percentage}%</div>
+                                <div class="stat-type" style="background: ${threeBetColor}">${threeBetType}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">F3B</div>
+                                <div class="stat-value" style="color: ${foldToThreeBetColor}">${data.fold_to_three_bet_percentage}%</div>
+                                <div class="stat-type" style="background: ${foldToThreeBetColor}">${foldToThreeBetType}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">CB</div>
+                                <div class="stat-value" style="color: ${continuationBetColor}">${data.continuation_bet_percentage}%</div>
+                                <div class="stat-type" style="background: ${continuationBetColor}">${continuationBetType}</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">BF</div>
+                                <div class="stat-value" style="color: ${foldToContinuationBetColor}">${data.fold_to_continuation_bet_percentage}%</div>
+                                <div class="stat-type" style="background: ${foldToContinuationBetColor}">${foldToContinuationBetType}</div>
+                            </div>
+                        </div>
+
+                        <div class="detailed-stats">
+                            <div class="detailed-stat">
+                                <div class="detailed-label">总手数</div>
+                                <div class="detailed-value">${data.total_hands}</div>
+                            </div>
+                            <div class="detailed-stat">
+                                <div class="detailed-label">VPIP次数</div>
+                                <div class="detailed-value">${data.total_vpip}</div>
+                            </div>
+                            <div class="detailed-stat">
+                                <div class="detailed-label">PFR次数</div>
+                                <div class="detailed-value">${data.total_pfr}</div>
+                            </div>
+                            <div class="detailed-stat">
+                                <div class="detailed-label">3BET次数</div>
+                                <div class="detailed-value">${data.total_three_bet}</div>
+                            </div>
+                            <div class="detailed-stat">
+                                <div class="detailed-label">F3B次数</div>
+                                <div class="detailed-value">${data.total_fold_to_three_bet}</div>
+                            </div>
+                            <div class="detailed-stat">
+                                <div class="detailed-label">CB次数</div>
+                                <div class="detailed-value">${data.total_continuation_bet}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                document.getElementById('resultsSection').innerHTML = html;
+            }
+
+            // 颜色和类型判断函数（与用户脚本保持一致）
+            getVpipColor(vpipPercent) {
+                if (vpipPercent < 20) return '#ff4444';
+                if (vpipPercent < 40) return '#ff8800';
+                if (vpipPercent < 60) return '#ffcc00';
+                if (vpipPercent < 70) return '#4488ff';
+                if (vpipPercent < 80) return '#00ccff';
+                return '#44ff44';
+            }
+
+            getPlayerType(vpipPercent) {
+                if (vpipPercent < 20) return '极紧';
+                if (vpipPercent < 40) return '紧';
+                if (vpipPercent < 60) return '正常';
+                if (vpipPercent < 70) return '松';
+                if (vpipPercent < 80) return '很松';
+                return '极松';
+            }
+
+            getPfrColor(pfrPercent) {
+                if (pfrPercent < 10) return '#cc0000';
+                if (pfrPercent < 15) return '#ff4444';
+                if (pfrPercent < 20) return '#ff8800';
+                if (pfrPercent < 25) return '#ffcc00';
+                if (pfrPercent < 30) return '#66bb00';
+                if (pfrPercent < 35) return '#339900';
+                return '#006600';
+            }
+
+            getPfrType(pfrPercent) {
+                if (pfrPercent < 10) return '极被动';
+                if (pfrPercent < 15) return '被动';
+                if (pfrPercent < 20) return '较被动';
+                if (pfrPercent < 25) return '正常';
+                if (pfrPercent < 30) return '较主动';
+                if (pfrPercent < 35) return '主动';
+                return '极主动';
+            }
+
+            getThreeBetColor(threeBetPercent) {
+                if (threeBetPercent < 5) return '#cc0000';
+                if (threeBetPercent < 10) return '#ff4444';
+                if (threeBetPercent < 15) return '#ff8800';
+                if (threeBetPercent < 20) return '#ffcc00';
+                if (threeBetPercent < 25) return '#66bb00';
+                if (threeBetPercent < 30) return '#339900';
+                return '#006600';
+            }
+
+            getThreeBetType(threeBetPercent) {
+                if (threeBetPercent < 5) return '极少';
+                if (threeBetPercent < 10) return '很少';
+                if (threeBetPercent < 15) return '较少';
+                if (threeBetPercent < 20) return '正常';
+                if (threeBetPercent < 25) return '较多';
+                if (threeBetPercent < 30) return '很多';
+                return '极多';
+            }
+
+            getFoldToThreeBetColor(foldToThreeBetPercent) {
+                if (foldToThreeBetPercent < 30) return '#006600';
+                if (foldToThreeBetPercent < 40) return '#339900';
+                if (foldToThreeBetPercent < 50) return '#66bb00';
+                if (foldToThreeBetPercent < 60) return '#ffcc00';
+                if (foldToThreeBetPercent < 70) return '#ff8800';
+                if (foldToThreeBetPercent < 80) return '#ff4444';
+                return '#cc0000';
+            }
+
+            getFoldToThreeBetType(foldToThreeBetPercent) {
+                if (foldToThreeBetPercent < 30) return '很少弃牌';
+                if (foldToThreeBetPercent < 40) return '较少弃牌';
+                if (foldToThreeBetPercent < 50) return '正常弃牌';
+                if (foldToThreeBetPercent < 60) return '较多弃牌';
+                if (foldToThreeBetPercent < 70) return '很多弃牌';
+                if (foldToThreeBetPercent < 80) return '极多弃牌';
+                return '总是弃牌';
+            }
+
+            getContinuationBetColor(continuationBetPercent) {
+                if (continuationBetPercent < 30) return '#cc0000';
+                if (continuationBetPercent < 40) return '#ff4444';
+                if (continuationBetPercent < 50) return '#ff8800';
+                if (continuationBetPercent < 60) return '#ffcc00';
+                if (continuationBetPercent < 70) return '#66bb00';
+                if (continuationBetPercent < 80) return '#339900';
+                return '#006600';
+            }
+
+            getContinuationBetType(continuationBetPercent) {
+                if (continuationBetPercent < 30) return '极少';
+                if (continuationBetPercent < 40) return '很少';
+                if (continuationBetPercent < 50) return '较少';
+                if (continuationBetPercent < 60) return '正常';
+                if (continuationBetPercent < 70) return '较多';
+                if (continuationBetPercent < 80) return '很多';
+                return '极多';
+            }
+
+            getFoldToContinuationBetColor(foldToContinuationBetPercent) {
+                if (foldToContinuationBetPercent < 30) return '#006600';
+                if (foldToContinuationBetPercent < 40) return '#339900';
+                if (foldToContinuationBetPercent < 50) return '#66bb00';
+                if (foldToContinuationBetPercent < 60) return '#ffcc00';
+                if (foldToContinuationBetPercent < 70) return '#ff8800';
+                if (foldToContinuationBetPercent < 80) return '#ff4444';
+                return '#cc0000';
+            }
+
+            getFoldToContinuationBetType(foldToContinuationBetPercent) {
+                if (foldToContinuationBetPercent < 30) return '很少弃牌';
+                if (foldToContinuationBetPercent < 40) return '较少弃牌';
+                if (foldToContinuationBetPercent < 50) return '正常弃牌';
+                if (foldToContinuationBetPercent < 60) return '较多弃牌';
+                if (foldToContinuationBetPercent < 70) return '很多弃牌';
+                if (foldToContinuationBetPercent < 80) return '极多弃牌';
+                return '总是弃牌';
+            }
+        }
+
+        // 初始化应用
+        document.addEventListener('DOMContentLoaded', () => {
+            new PokerStatsQuery();
+        });
+    </script>
+</body>
+</html>
