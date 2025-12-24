@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         德州扑克松紧凶玩家数据显示
 // @namespace    http://tampermonkey.net/
-// @version      1.1
-// @description  根据游戏日志计算玩家VPIP(主动入池率)
+// @version      2.0
+// @description  根据游戏日志计算玩家VPIP/PFR/3BET/F3B/CB/BF等多项德州扑克统计数据
 // @author       shaowu[2691980]
 // @match        https://www.torn.com/page.php?sid=holdem*
 // @grant        GM_addStyle
@@ -12,6 +12,14 @@
 // @grant        GM_listValues
 // ==/UserScript==
 /* 数据会显示到网页右上角，手机显示估计暂不支持，后续会开发适配手机， */
+/* 20250524 发布2.0  重大功能更新
+                      1.新增3BET（三次下注）统计功能
+                      2.新增F3B（面对三次下注弃牌率）统计功能
+                      3.新增CB（持续下注率）统计功能
+                      4.新增BF（面对下注弃牌率）统计功能
+                      5.重新设计界面，支持6项指标同时显示
+                      6.优化颜色分类系统，更直观展示玩家类型*/
+
 /* 20250524 发布1.1  修复BUG
                       1.修复翻前被raise后再CALL重复计算的BUG
                       2.修复翻前allin不能被正确识别BUG*/
@@ -31,6 +39,10 @@
 
 /* 使用立即执行函数确保作用域隔离 */
 let currentTime = 0; // 游戏阶段：0=翻后/游戏结束，1=翻前阶段
+let currentStreet = 0; // 当前街道：0=翻前, 1=翻牌, 2=转牌, 3=河牌
+let lastRaisePlayer = null; // 上一个加注的玩家
+let lastBetPlayer = null; // 上一个下注的玩家
+let raiseCount = 0; // 当前轮次加注次数
 (function() {
     'use strict';
     /* 清空缓存用，一般情况请勿放开 */
@@ -39,8 +51,8 @@ let currentTime = 0; // 游戏阶段：0=翻后/游戏结束，1=翻前阶段
     const DEBUG_MODE = true;
 
     /* 存储游戏和玩家数据 */
-    let gameStats = {}; // 游戏统计数据：{gameId: {players: {playerId: {hands: 手数, vpip: 主动入池次数, pfr: 翻前加注次数}}, startTime: 时间戳}}
-    let playerStats = {}; // 玩家累计统计数据：{playerId: {totalHands: 总手数, totalVpip: 总主动入池次数, totalPfr: 总翻前加注次数, games: 参与游戏数}}
+    let gameStats = {}; // 游戏统计数据：{gameId: {players: {playerId: {hands: 手数, vpip: 主动入池次数, pfr: 翻前加注次数, threeBet: 三次下注次数, foldToThreeBet: 面对三次下注弃牌次数, continuationBet: 持续下注次数, foldToContinuationBet: 面对持续下注弃牌次数, checkFold: 检查弃牌次数, raiseFold: 加注弃牌次数}}, startTime: 时间戳}}
+    let playerStats = {}; // 玩家累计统计数据：{playerId: {totalHands: 总手数, totalVpip: 总主动入池次数, totalPfr: 总翻前加注次数, totalThreeBet: 总三次下注次数, totalFoldToThreeBet: 总面对三次下注弃牌次数, totalContinuationBet: 总持续下注次数, totalFoldToContinuationBet: 总面对持续下注弃牌次数, totalCheckFold: 总检查弃牌次数, totalRaiseFold: 总加注弃牌次数, games: 参与游戏数}}
     let processed_ids = []; // 本局已处理的玩家ID列表，防止重复计算
     let table_player = {}; // 桌面玩家状态：{playerId: {intable: true/false}}
     let currentGameId = null; // 当前游戏唯一ID
@@ -125,11 +137,46 @@ let currentTime = 0; // 游戏阶段：0=翻后/游戏结束，1=翻前阶段
                 return;
             }
             
+            // 街道变化处理
+            if(playerId == "The flop:")
+            {
+                currentStreet = 1; // 进入翻牌圈
+                raiseCount = 0; // 重置加注次数
+                lastRaisePlayer = null; // 重置最后加注玩家
+                lastBetPlayer = null; // 重置最后下注玩家
+                if(DEBUG_MODE) console.log('🎴 进入翻牌圈');
+                return;
+            }
+            
+            if(playerId == "The turn:")
+            {
+                currentStreet = 2; // 进入转牌圈
+                raiseCount = 0; // 重置加注次数
+                lastRaisePlayer = null; // 重置最后加注玩家
+                lastBetPlayer = null; // 重置最后下注玩家
+                if(DEBUG_MODE) console.log('🎴 进入转牌圈');
+                return;
+            }
+            
+            if(playerId == "The river:")
+            {
+                currentStreet = 3; // 进入河牌圈
+                raiseCount = 0; // 重置加注次数
+                lastRaisePlayer = null; // 重置最后加注玩家
+                lastBetPlayer = null; // 重置最后下注玩家
+                if(DEBUG_MODE) console.log('🎴 进入河牌圈');
+                return;
+            }
+            
             // 游戏结束处理
-            if(playerId == "The flop:" || /^won/i.test(action))
+            if(/^won/i.test(action))
             {
                 currentTime = 0;
+                currentStreet = 0;
                 processed_ids = [];
+                lastRaisePlayer = null;
+                lastBetPlayer = null;
+                raiseCount = 0;
                 
                 // 结束当前游戏
                 if(currentGameId && gameStats[currentGameId]) {
@@ -150,11 +197,32 @@ let currentTime = 0; // 游戏阶段：0=翻后/游戏结束，1=翻前阶段
                 if(DEBUG_MODE) console.log('📊 [翻前阶段] 处理玩家:', playerId, '游戏ID:', currentGameId);
                 
                 // 步骤1: 初始化玩家累计数据（如果第一次出现）
-                playerStats[playerId] = playerStats[playerId] || {totalHands: 0, totalVpip: 0, games: 0};
+                playerStats[playerId] = playerStats[playerId] || {
+                    totalHands: 0,
+                    totalVpip: 0,
+                    totalPfr: 0,
+                    totalThreeBet: 0,
+                    totalFoldToThreeBet: 0,
+                    totalContinuationBet: 0,
+                    totalFoldToContinuationBet: 0,
+                    totalCheckFold: 0,
+                    totalRaiseFold: 0,
+                    games: 0
+                };
                 
                 // 步骤2: 初始化当前游戏中的玩家数据
                 if(currentGameId && gameStats[currentGameId]) {
-                    gameStats[currentGameId].players[playerId] = gameStats[currentGameId].players[playerId] || {hands: 0, vpip: 0, pfr: 0};
+                    gameStats[currentGameId].players[playerId] = gameStats[currentGameId].players[playerId] || {
+                        hands: 0,
+                        vpip: 0,
+                        pfr: 0,
+                        threeBet: 0,
+                        foldToThreeBet: 0,
+                        continuationBet: 0,
+                        foldToContinuationBet: 0,
+                        checkFold: 0,
+                        raiseFold: 0
+                    };
                 }
                 
                 // 步骤3: 防重复计算检查
@@ -180,9 +248,19 @@ let currentTime = 0; // 游戏阶段：0=翻后/游戏结束，1=翻前阶段
                 // 步骤7: 判断行为类型
                 const isVpipAction = /^called/i.test(action) || /^raised/i.test(action)||/^checked/i.test(action)||/^allin/i.test(action);
                 const isPfrAction = /^raised/i.test(action) || (/^allin/i.test(action) && currentTime === 1); // 翻前allin也算加注
+                const isThreeBetAction = /^raised/i.test(action) && raiseCount >= 1; // 当已有加注时再次加注为3bet
+                const isFoldAction = /^folded/i.test(action);
+                const isCheckAction = /^checked/i.test(action);
+                const isCallAction = /^called/i.test(action);
                 
-                // 初始化PFR数据（如果需要）
+                // 初始化所有统计数据（如果需要）
                 playerStats[playerId].totalPfr = playerStats[playerId].totalPfr || 0;
+                playerStats[playerId].totalThreeBet = playerStats[playerId].totalThreeBet || 0;
+                playerStats[playerId].totalFoldToThreeBet = playerStats[playerId].totalFoldToThreeBet || 0;
+                playerStats[playerId].totalContinuationBet = playerStats[playerId].totalContinuationBet || 0;
+                playerStats[playerId].totalFoldToContinuationBet = playerStats[playerId].totalFoldToContinuationBet || 0;
+                playerStats[playerId].totalCheckFold = playerStats[playerId].totalCheckFold || 0;
+                playerStats[playerId].totalRaiseFold = playerStats[playerId].totalRaiseFold || 0;
                 
                 if (isVpipAction) {
                     // 更新累计VPIP
@@ -203,21 +281,145 @@ let currentTime = 0; // 游戏阶段：0=翻后/游戏结束，1=翻前阶段
                             gameStats[currentGameId].players[playerId].pfr++;
                         }
                         
+                        // 检查是否为3BET行为
+                        if (isThreeBetAction) {
+                            playerStats[playerId].totalThreeBet++;
+                            if(currentGameId && gameStats[currentGameId] && gameStats[currentGameId].players[playerId]) {
+                                gameStats[currentGameId].players[playerId].threeBet++;
+                            }
+                            if(DEBUG_MODE) console.log(`🔥 3BET更新: ${playerId} | 加注次数: ${raiseCount}`);
+                        }
+                        
+                        // 更新加注状态
+                        lastRaisePlayer = playerId;
+                        raiseCount++;
+                        
                         const vpipRate = ((playerStats[playerId].totalVpip / playerStats[playerId].totalHands) * 100).toFixed(1);
                         const pfrRate = ((playerStats[playerId].totalPfr / playerStats[playerId].totalHands) * 100).toFixed(1);
-                        if(DEBUG_MODE) console.log(`🔥 PFR+VPIP更新: ${playerId} | 总手数: ${playerStats[playerId].totalHands} | 总VPIP: ${playerStats[playerId].totalVpip} | 总PFR: ${playerStats[playerId].totalPfr} | VPIP率: ${vpipRate}% | PFR率: ${pfrRate}% | 行为: ${action}`);
+                        const threeBetRate = playerStats[playerId].totalPfr > 0 ? ((playerStats[playerId].totalThreeBet / playerStats[playerId].totalPfr) * 100).toFixed(1) : "0.0";
+                        if(DEBUG_MODE) console.log(`🔥 PFR+VPIP更新: ${playerId} | 总手数: ${playerStats[playerId].totalHands} | 总VPIP: ${playerStats[playerId].totalVpip} | 总PFR: ${playerStats[playerId].totalPfr} | 总3BET: ${playerStats[playerId].totalThreeBet} | VPIP率: ${vpipRate}% | PFR率: ${pfrRate}% | 3BET率: ${threeBetRate}% | 行为: ${action}`);
+                    } else if (isCallAction && lastRaisePlayer && raiseCount >= 1) {
+                        // 面对加注的跟注，记录为面对3bet的跟注
+                        if(DEBUG_MODE) console.log(`📞 面对加注跟注: ${playerId} | 加注者: ${lastRaisePlayer} | 加注次数: ${raiseCount}`);
                     } else {
                         const vpipRate = ((playerStats[playerId].totalVpip / playerStats[playerId].totalHands) * 100).toFixed(1);
                         const pfrRate = ((playerStats[playerId].totalPfr / playerStats[playerId].totalHands) * 100).toFixed(1);
                         if(DEBUG_MODE) console.log(`✅ VPIP更新: ${playerId} | 总手数: ${playerStats[playerId].totalHands} | 总VPIP: ${playerStats[playerId].totalVpip} | 总PFR: ${playerStats[playerId].totalPfr} | VPIP率: ${vpipRate}% | PFR率: ${pfrRate}% | 行为: ${action}`);
                     }
                 } else {
+                    // 处理弃牌行为
+                    if (isFoldAction) {
+                        // 面对加注的弃牌
+                        if (lastRaisePlayer && raiseCount >= 1) {
+                            playerStats[playerId].totalFoldToThreeBet++;
+                            if(currentGameId && gameStats[currentGameId] && gameStats[currentGameId].players[playerId]) {
+                                gameStats[currentGameId].players[playerId].foldToThreeBet++;
+                            }
+                            if(DEBUG_MODE) console.log(`🏳️ 面对加注弃牌: ${playerId} | 加注者: ${lastRaisePlayer} | 加注次数: ${raiseCount}`);
+                        }
+                        
+                        // 面对下注的弃牌（翻后）
+                        if (lastBetPlayer && currentStreet > 0) {
+                            playerStats[playerId].totalFoldToContinuationBet++;
+                            if(currentGameId && gameStats[currentGameId] && gameStats[currentGameId].players[playerId]) {
+                                gameStats[currentGameId].players[playerId].foldToContinuationBet++;
+                            }
+                            if(DEBUG_MODE) console.log(`🏳️ 面对下注弃牌: ${playerId} | 下注者: ${lastBetPlayer} | 街道: ${currentStreet}`);
+                        }
+                    }
+                    
+                    // 处理检查后弃牌
+                    if (isCheckAction && lastBetPlayer && currentStreet > 0) {
+                        playerStats[playerId].totalCheckFold++;
+                        if(currentGameId && gameStats[currentGameId] && gameStats[currentGameId].players[playerId]) {
+                            gameStats[currentGameId].players[playerId].checkFold++;
+                        }
+                        if(DEBUG_MODE) console.log(`👁️ 检查后弃牌: ${playerId} | 街道: ${currentStreet}`);
+                    }
+                    
                     const vpipRate = ((playerStats[playerId].totalVpip / playerStats[playerId].totalHands) * 100).toFixed(1);
                     const pfrRate = ((playerStats[playerId].totalPfr / playerStats[playerId].totalHands) * 100).toFixed(1);
                     if(DEBUG_MODE) console.log(`❌ 非VPIP行为: ${playerId} | 总手数: ${playerStats[playerId].totalHands} | 总VPIP: ${playerStats[playerId].totalVpip} | 总PFR: ${playerStats[playerId].totalPfr} | VPIP率: ${vpipRate}% | PFR率: ${pfrRate}% | 行为: ${action}`);
                 }
+            } else if(currentTime === 0 && currentStreet > 0) {
+                // 翻后阶段处理
+                if(DEBUG_MODE) console.log('📊 [翻后阶段] 处理玩家:', playerId, '街道:', currentStreet);
+                
+                // 初始化玩家数据（如果第一次出现）
+                playerStats[playerId] = playerStats[playerId] || {
+                    totalHands: 0,
+                    totalVpip: 0,
+                    totalPfr: 0,
+                    totalThreeBet: 0,
+                    totalFoldToThreeBet: 0,
+                    totalContinuationBet: 0,
+                    totalFoldToContinuationBet: 0,
+                    totalCheckFold: 0,
+                    totalRaiseFold: 0,
+                    games: 0
+                };
+                
+                // 初始化当前游戏中的玩家数据
+                if(currentGameId && gameStats[currentGameId]) {
+                    gameStats[currentGameId].players[playerId] = gameStats[currentGameId].players[playerId] || {
+                        hands: 0,
+                        vpip: 0,
+                        pfr: 0,
+                        threeBet: 0,
+                        foldToThreeBet: 0,
+                        continuationBet: 0,
+                        foldToContinuationBet: 0,
+                        checkFold: 0,
+                        raiseFold: 0
+                    };
+                }
+                
+                // 判断行为类型
+                const isBetAction = /^bet/i.test(action) || /^raised/i.test(action);
+                const isFoldAction = /^folded/i.test(action);
+                const isCheckAction = /^checked/i.test(action);
+                const isCallAction = /^called/i.test(action);
+                
+                // 处理下注/加注行为
+                if (isBetAction) {
+                    // 检查是否为持续下注（翻前加注者在翻后的下注）
+                    if (lastRaisePlayer === playerId && currentStreet === 1) {
+                        playerStats[playerId].totalContinuationBet++;
+                        if(currentGameId && gameStats[currentGameId] && gameStats[currentGameId].players[playerId]) {
+                            gameStats[currentGameId].players[playerId].continuationBet++;
+                        }
+                        if(DEBUG_MODE) console.log(`🔥 持续下注(CB): ${playerId} | 街道: ${currentStreet}`);
+                    }
+                    
+                    // 更新下注状态
+                    lastBetPlayer = playerId;
+                    lastRaisePlayer = playerId;
+                    raiseCount++;
+                }
+                
+                // 处理弃牌行为
+                if (isFoldAction) {
+                    // 面对下注的弃牌
+                    if (lastBetPlayer) {
+                        playerStats[playerId].totalFoldToContinuationBet++;
+                        if(currentGameId && gameStats[currentGameId] && gameStats[currentGameId].players[playerId]) {
+                            gameStats[currentGameId].players[playerId].foldToContinuationBet++;
+                        }
+                        if(DEBUG_MODE) console.log(`🏳️ 面对下注弃牌: ${playerId} | 下注者: ${lastBetPlayer} | 街道: ${currentStreet}`);
+                    }
+                }
+                
+                // 处理检查后弃牌
+                if (isCheckAction && lastBetPlayer) {
+                    playerStats[playerId].totalCheckFold++;
+                    if(currentGameId && gameStats[currentGameId] && gameStats[currentGameId].players[playerId]) {
+                        gameStats[currentGameId].players[playerId].checkFold++;
+                    }
+                    if(DEBUG_MODE) console.log(`👁️ 检查后弃牌: ${playerId} | 街道: ${currentStreet}`);
+                }
+                
             } else {
-                if(DEBUG_MODE) console.log('⏸️ [翻后阶段] 跳过VPIP统计:', playerId, action);
+                if(DEBUG_MODE) console.log('⏸️ [其他阶段] 跳过统计:', playerId, action);
             }
 
         } catch (e) {
@@ -290,20 +492,50 @@ let currentTime = 0; // 游戏阶段：0=翻后/游戏结束，1=翻前阶段
                     const pfrPercent = stat.totalHands > 0
                         ? (stat.totalPfr / stat.totalHands * 100).toFixed(1)
                         : "0.0";
+                    const threeBetPercent = stat.totalPfr > 0
+                        ? (stat.totalThreeBet / stat.totalPfr * 100).toFixed(1)
+                        : "0.0";
+                    const foldToThreeBetPercent = (stat.totalThreeBet + stat.totalFoldToThreeBet) > 0
+                        ? (stat.totalFoldToThreeBet / (stat.totalThreeBet + stat.totalFoldToThreeBet) * 100).toFixed(1)
+                        : "0.0";
+                    const continuationBetPercent = stat.totalPfr > 0
+                        ? (stat.totalContinuationBet / stat.totalPfr * 100).toFixed(1)
+                        : "0.0";
+                    const foldToContinuationBetPercent = (stat.totalContinuationBet + stat.totalFoldToContinuationBet) > 0
+                        ? (stat.totalFoldToContinuationBet / (stat.totalContinuationBet + stat.totalFoldToContinuationBet) * 100).toFixed(1)
+                        : "0.0";
+                    
                     const vpipColor = getVpipColor(vpipPercent);
                     const pfrColor = getPfrColor(pfrPercent);
+                    const threeBetColor = getThreeBetColor(threeBetPercent);
+                    const foldToThreeBetColor = getFoldToThreeBetColor(foldToThreeBetPercent);
+                    const continuationBetColor = getContinuationBetColor(continuationBetPercent);
+                    const foldToContinuationBetColor = getFoldToContinuationBetColor(foldToContinuationBetPercent);
+                    
                     const vpipType = getPlayerType(vpipPercent);
                     const pfrType = getPfrType(pfrPercent);
+                    const threeBetType = getThreeBetType(threeBetPercent);
+                    const foldToThreeBetType = getFoldToThreeBetType(foldToThreeBetPercent);
+                    const continuationBetType = getContinuationBetType(continuationBetPercent);
+                    const foldToContinuationBetType = getFoldToContinuationBetType(foldToContinuationBetPercent);
                     
                     // 获取当前游戏数据
                     let currentGameVpip = 0;
                     let currentGameHands = 0;
                     let currentGamePfr = 0;
+                    let currentGameThreeBet = 0;
+                    let currentGameFoldToThreeBet = 0;
+                    let currentGameContinuationBet = 0;
+                    let currentGameFoldToContinuationBet = 0;
                     if(currentGameId && gameStats[currentGameId] && gameStats[currentGameId].players[playerId]) {
                         const currentStat = gameStats[currentGameId].players[playerId];
                         currentGameHands = currentStat.hands;
                         currentGameVpip = currentStat.vpip;
                         currentGamePfr = currentStat.pfr || 0;
+                        currentGameThreeBet = currentStat.threeBet || 0;
+                        currentGameFoldToThreeBet = currentStat.foldToThreeBet || 0;
+                        currentGameContinuationBet = currentStat.continuationBet || 0;
+                        currentGameFoldToContinuationBet = currentStat.foldToContinuationBet || 0;
                     }
                     
                     // 玩家卡片
@@ -315,32 +547,64 @@ let currentTime = 0; // 游戏阶段：0=翻后/游戏结束，1=翻前阶段
                     html += `<div style="font-size:11px;color:#666;background:#e9e9e9;padding:2px6px;border-radius:3px;">游戏数: ${stat.games}</div>`;
                     html += '</div>';
                     
-                    // VPIP和PFR主要指标
-                    html += '<div style="display:flex;justify-content:space-between;margin-bottom:10px;">';
-                    html += '<div style="flex:1;text-align:center;padding:8px;background:white;border-radius:6px;margin-right:6px;border:1px solid #e0e0e0;">';
-                    html += `<div style="font-size:12px;color:#666;margin-bottom:3px;font-weight:bold;">VPIP</div>`;
-                    html += `<div style="font-size:18px;font-weight:bold;color:${vpipColor};margin-bottom:2px;">${vpipPercent}%</div>`;
-                    html += `<div style="font-size:10px;color:${vpipColor};background:${vpipColor}20;padding:1px4px;border-radius:2px;">${vpipType}</div>`;
+                    // 第一行：VPIP和PFR主要指标
+                    html += '<div style="display:flex;justify-content:space-between;margin-bottom:8px;">';
+                    html += '<div style="flex:1;text-align:center;padding:6px;background:white;border-radius:6px;margin-right:3px;border:1px solid #e0e0e0;">';
+                    html += `<div style="font-size:11px;color:#666;margin-bottom:2px;font-weight:bold;">VPIP</div>`;
+                    html += `<div style="font-size:16px;font-weight:bold;color:${vpipColor};margin-bottom:2px;">${vpipPercent}%</div>`;
+                    html += `<div style="font-size:9px;color:${vpipColor};background:${vpipColor}20;padding:1px3px;border-radius:2px;">${vpipType}</div>`;
                     html += '</div>';
-                    html += '<div style="flex:1;text-align:center;padding:8px;background:white;border-radius:6px;margin-left:6px;border:1px solid #e0e0e0;">';
-                    html += `<div style="font-size:12px;color:#666;margin-bottom:3px;font-weight:bold;">PFR</div>`;
-                    html += `<div style="font-size:18px;font-weight:bold;color:${pfrColor};margin-bottom:2px;">${pfrPercent}%</div>`;
-                    html += `<div style="font-size:10px;color:${pfrColor};background:${pfrColor}20;padding:1px4px;border-radius:2px;">${pfrType}</div>`;
+                    html += '<div style="flex:1;text-align:center;padding:6px;background:white;border-radius:6px;margin-left:3px;border:1px solid #e0e0e0;">';
+                    html += `<div style="font-size:11px;color:#666;margin-bottom:2px;font-weight:bold;">PFR</div>`;
+                    html += `<div style="font-size:16px;font-weight:bold;color:${pfrColor};margin-bottom:2px;">${pfrPercent}%</div>`;
+                    html += `<div style="font-size:9px;color:${pfrColor};background:${pfrColor}20;padding:1px3px;border-radius:2px;">${pfrType}</div>`;
+                    html += '</div>';
+                    html += '</div>';
+                    
+                    // 第二行：3BET和F3B指标
+                    html += '<div style="display:flex;justify-content:space-between;margin-bottom:8px;">';
+                    html += '<div style="flex:1;text-align:center;padding:6px;background:white;border-radius:6px;margin-right:3px;border:1px solid #e0e0e0;">';
+                    html += `<div style="font-size:11px;color:#666;margin-bottom:2px;font-weight:bold;">3BET</div>`;
+                    html += `<div style="font-size:16px;font-weight:bold;color:${threeBetColor};margin-bottom:2px;">${threeBetPercent}%</div>`;
+                    html += `<div style="font-size:9px;color:${threeBetColor};background:${threeBetColor}20;padding:1px3px;border-radius:2px;">${threeBetType}</div>`;
+                    html += '</div>';
+                    html += '<div style="flex:1;text-align:center;padding:6px;background:white;border-radius:6px;margin-left:3px;border:1px solid #e0e0e0;">';
+                    html += `<div style="font-size:11px;color:#666;margin-bottom:2px;font-weight:bold;">F3B</div>`;
+                    html += `<div style="font-size:16px;font-weight:bold;color:${foldToThreeBetColor};margin-bottom:2px;">${foldToThreeBetPercent}%</div>`;
+                    html += `<div style="font-size:9px;color:${foldToThreeBetColor};background:${foldToThreeBetColor}20;padding:1px3px;border-radius:2px;">${foldToThreeBetType}</div>`;
+                    html += '</div>';
+                    html += '</div>';
+                    
+                    // 第三行：CB和BF指标
+                    html += '<div style="display:flex;justify-content:space-between;margin-bottom:8px;">';
+                    html += '<div style="flex:1;text-align:center;padding:6px;background:white;border-radius:6px;margin-right:3px;border:1px solid #e0e0e0;">';
+                    html += `<div style="font-size:11px;color:#666;margin-bottom:2px;font-weight:bold;">CB</div>`;
+                    html += `<div style="font-size:16px;font-weight:bold;color:${continuationBetColor};margin-bottom:2px;">${continuationBetPercent}%</div>`;
+                    html += `<div style="font-size:9px;color:${continuationBetColor};background:${continuationBetColor}20;padding:1px3px;border-radius:2px;">${continuationBetType}</div>`;
+                    html += '</div>';
+                    html += '<div style="flex:1;text-align:center;padding:6px;background:white;border-radius:6px;margin-left:3px;border:1px solid #e0e0e0;">';
+                    html += `<div style="font-size:11px;color:#666;margin-bottom:2px;font-weight:bold;">BF</div>`;
+                    html += `<div style="font-size:16px;font-weight:bold;color:${foldToContinuationBetColor};margin-bottom:2px;">${foldToContinuationBetPercent}%</div>`;
+                    html += `<div style="font-size:9px;color:${foldToContinuationBetColor};background:${foldToContinuationBetColor}20;padding:1px3px;border-radius:2px;">${foldToContinuationBetType}</div>`;
                     html += '</div>';
                     html += '</div>';
                     
                     // 详细数据
-                    html += '<div style="display:flex;justify-content:space-between;font-size:11px;color:#666;margin-bottom:8px;">';
-                    html += `<div>总手数: <span style="font-weight:bold;color:#333;">${stat.totalHands}</span></div>`;
-                    html += `<div>VPIP: <span style="font-weight:bold;color:#333;">${stat.totalVpip}</span></div>`;
-                    html += `<div>PFR: <span style="font-weight:bold;color:#333;">${stat.totalPfr}</span></div>`;
+                    html += '<div style="display:flex;justify-content:space-between;font-size:10px;color:#666;margin-bottom:8px;flex-wrap:wrap;">';
+                    html += `<div style="width:33%;">手数: <span style="font-weight:bold;color:#333;">${stat.totalHands}</span></div>`;
+                    html += `<div style="width:33%;">VPIP: <span style="font-weight:bold;color:#333;">${stat.totalVpip}</span></div>`;
+                    html += `<div style="width:33%;">PFR: <span style="font-weight:bold;color:#333;">${stat.totalPfr}</span></div>`;
+                    html += `<div style="width:33%;">3BET: <span style="font-weight:bold;color:#333;">${stat.totalThreeBet}</span></div>`;
+                    html += `<div style="width:33%;">F3B: <span style="font-weight:bold;color:#333;">${stat.totalFoldToThreeBet}</span></div>`;
+                    html += `<div style="width:33%;">CB: <span style="font-weight:bold;color:#333;">${stat.totalContinuationBet}</span></div>`;
                     html += '</div>';
                     
                     // 当前游戏数据
                     if(currentGameHands > 0) {
-                        html += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid #eee;font-size:10px;color:#888;background:#f5f5f5;padding:6px;border-radius:4px;">';
+                        html += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid #eee;font-size:9px;color:#888;background:#f5f5f5;padding:6px;border-radius:4px;">';
                         html += `<div style="font-weight:bold;margin-bottom:3px;color:#666;">本局数据</div>`;
                         html += `<div>手数: ${currentGameHands} | VPIP: ${currentGameVpip} | PFR: ${currentGamePfr}</div>`;
+                        html += `<div>3BET: ${currentGameThreeBet} | F3B: ${currentGameFoldToThreeBet} | CB: ${currentGameContinuationBet}</div>`;
                         html += '</div>';
                     }
                     
@@ -349,9 +613,10 @@ let currentTime = 0; // 游戏阶段：0=翻后/游戏结束，1=翻前阶段
             }
             
             // 底部信息
-            html += '<div style="margin-top:12px;padding-top:10px;border-top:1px solid #ddd;font-size:10px;color:#999;text-align:center;">';
+            html += '<div style="margin-top:12px;padding-top:10px;border-top:1px solid #ddd;font-size:9px;color:#999;text-align:center;">';
             html += `<div>在桌玩家: ${sortedPlayers.length} | 总游戏数: ${Object.keys(gameStats).length}</div>`;
-            html += '<div style="margin-top:2px;">VPIP=主动入池率 | PFR=翻前加注率</div>';
+            html += '<div style="margin-top:2px;">VPIP=主动入池率 | PFR=翻前加注率 | 3BET=三次下注率 | F3B=面对三次下注弃牌率</div>';
+            html += '<div style="margin-top:2px;">CB=持续下注率 | BF=面对下注弃牌率</div>';
             html += '</div>';
 
             container.innerHTML = html;
@@ -583,6 +848,90 @@ let currentTime = 0; // 游戏阶段：0=翻后/游戏结束，1=翻前阶段
         if (pfrPercent < 30) return '较主动';
         if (pfrPercent < 35) return '主动';
         return '极主动';
+    }
+    
+    // 3BET颜色和类型判断函数
+    function getThreeBetColor(threeBetPercent) {
+        if (threeBetPercent < 5) return '#cc0000';      // 深红 - 极少3bet
+        if (threeBetPercent < 10) return '#ff4444';     // 红色 - 很少3bet
+        if (threeBetPercent < 15) return '#ff8800';     // 橙色 - 较少3bet
+        if (threeBetPercent < 20) return '#ffcc00';     // 黄色 - 正常3bet
+        if (threeBetPercent < 25) return '#88cc00';     // 黄绿 - 较多3bet
+        if (threeBetPercent < 30) return '#44cc44';     // 绿色 - 很多3bet
+        return '#00aa00';                               // 深绿 - 极多3bet
+    }
+    
+    function getThreeBetType(threeBetPercent) {
+        if (threeBetPercent < 5) return '极少';
+        if (threeBetPercent < 10) return '很少';
+        if (threeBetPercent < 15) return '较少';
+        if (threeBetPercent < 20) return '正常';
+        if (threeBetPercent < 25) return '较多';
+        if (threeBetPercent < 30) return '很多';
+        return '极多';
+    }
+    
+    // F3B颜色和类型判断函数
+    function getFoldToThreeBetColor(foldToThreeBetPercent) {
+        if (foldToThreeBetPercent < 30) return '#00aa00';  // 深绿 - 很少弃牌
+        if (foldToThreeBetPercent < 40) return '#44cc44';  // 绿色 - 较少弃牌
+        if (foldToThreeBetPercent < 50) return '#88cc00';  // 黄绿 - 正常弃牌
+        if (foldToThreeBetPercent < 60) return '#ffcc00';  // 黄色 - 较多弃牌
+        if (foldToThreeBetPercent < 70) return '#ff8800';  // 橙色 - 很多弃牌
+        if (foldToThreeBetPercent < 80) return '#ff4444';  // 红色 - 极多弃牌
+        return '#cc0000';                                  // 深红 - 几乎总是弃牌
+    }
+    
+    function getFoldToThreeBetType(foldToThreeBetPercent) {
+        if (foldToThreeBetPercent < 30) return '很少弃牌';
+        if (foldToThreeBetPercent < 40) return '较少弃牌';
+        if (foldToThreeBetPercent < 50) return '正常弃牌';
+        if (foldToThreeBetPercent < 60) return '较多弃牌';
+        if (foldToThreeBetPercent < 70) return '很多弃牌';
+        if (foldToThreeBetPercent < 80) return '极多弃牌';
+        return '总是弃牌';
+    }
+    
+    // CB颜色和类型判断函数
+    function getContinuationBetColor(continuationBetPercent) {
+        if (continuationBetPercent < 30) return '#cc0000';     // 深红 - 极少CB
+        if (continuationBetPercent < 40) return '#ff4444';     // 红色 - 很少CB
+        if (continuationBetPercent < 50) return '#ff8800';     // 橙色 - 较少CB
+        if (continuationBetPercent < 60) return '#ffcc00';     // 黄色 - 正常CB
+        if (continuationBetPercent < 70) return '#88cc00';     // 黄绿 - 较多CB
+        if (continuationBetPercent < 80) return '#44cc44';     // 绿色 - 很多CB
+        return '#00aa00';                                       // 深绿 - 极多CB
+    }
+    
+    function getContinuationBetType(continuationBetPercent) {
+        if (continuationBetPercent < 30) return '极少';
+        if (continuationBetPercent < 40) return '很少';
+        if (continuationBetPercent < 50) return '较少';
+        if (continuationBetPercent < 60) return '正常';
+        if (continuationBetPercent < 70) return '较多';
+        if (continuationBetPercent < 80) return '很多';
+        return '极多';
+    }
+    
+    // BF颜色和类型判断函数
+    function getFoldToContinuationBetColor(foldToContinuationBetPercent) {
+        if (foldToContinuationBetPercent < 30) return '#00aa00';  // 深绿 - 很少弃牌
+        if (foldToContinuationBetPercent < 40) return '#44cc44';  // 绿色 - 较少弃牌
+        if (foldToContinuationBetPercent < 50) return '#88cc00';  // 黄绿 - 正常弃牌
+        if (foldToContinuationBetPercent < 60) return '#ffcc00';  // 黄色 - 较多弃牌
+        if (foldToContinuationBetPercent < 70) return '#ff8800';  // 橙色 - 很多弃牌
+        if (foldToContinuationBetPercent < 80) return '#ff4444';  // 红色 - 极多弃牌
+        return '#cc0000';                                          // 深红 - 几乎总是弃牌
+    }
+    
+    function getFoldToContinuationBetType(foldToContinuationBetPercent) {
+        if (foldToContinuationBetPercent < 30) return '很少弃牌';
+        if (foldToContinuationBetPercent < 40) return '较少弃牌';
+        if (foldToContinuationBetPercent < 50) return '正常弃牌';
+        if (foldToContinuationBetPercent < 60) return '较多弃牌';
+        if (foldToContinuationBetPercent < 70) return '很多弃牌';
+        if (foldToContinuationBetPercent < 80) return '极多弃牌';
+        return '总是弃牌';
     }
 
     // 清理全部缓存
