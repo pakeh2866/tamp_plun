@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Tornw3b自动高亮并提醒低价商品0.4
+// @name         Tornw3b自动高亮并提醒低价商品
 // @namespace    https://github.com/pakeh2866
 // @version      0.5
 // @description  w3b中低于某个价格，利润在x%以上的高亮显示,并提醒
