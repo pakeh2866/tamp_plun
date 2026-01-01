@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tornw3b自动高亮并提醒低价商品0.4
 // @namespace    https://github.com/pakeh2866
-// @version      0.4
+// @version      0.5
 // @description  w3b中低于某个价格，利润在x%以上的高亮显示,并提醒
 // @author       pakeh[3973672]  如果对你有那么一点点帮助，可以send我一个Xan
 // @match        https://weav3r.dev/favorites
@@ -16,10 +16,10 @@
 /*
  * ==================== 更新日志 ====================
  *
- * 版本 0.4 (2025-12-23)
- * - 修复：优化了特定品种条件的数量条件
- * - 新增：添加了黑名单功能，可忽略特定ID的商品并以橙红色高亮显示
- * - 优化：增加了巴扎高亮
+ * 版本 0.5 (2026-01-01)
+ * - 修复：优化了商品卡片持续高亮的BUG。
+ * - 新增：按利润排序和通知、按利润率排序和通知的功能。
+ * - 优化：增加了巴扎高亮增加数量。
  *
  * ==================== 使用方法 ====================
  *
@@ -114,7 +114,9 @@
                         profitColor: '#4caf50',
                         lossColor: '#f44336',
                         enableSound: parsed.enableSound !== undefined ? parsed.enableSound : true,  // 新增：是否启用提示音
-                        blacklistIds: parsed.blacklistIds || ''  // 新增：黑名单ID列表
+                        blacklistIds: parsed.blacklistIds || '',  // 新增：黑名单ID列表
+                        // 排序和通知选项：0=按利润排序和通知，1=按利润率排序和通知
+                        sortByOption: parsed.sortByOption !== undefined ? parsed.sortByOption : 0  // 新增：排序和通知选项
                     };
                 }
             } catch (error) {
@@ -136,7 +138,9 @@
                 profitColor: '#4caf50',
                 lossColor: '#f44336',
                 enableSound: true,  // 新增：是否启用提示音
-                blacklistIds: ''  // 新增：黑名单ID列表
+                blacklistIds: '',  // 新增：黑名单ID列表
+                // 排序和通知选项：0=按利润排序和通知，1=按利润率排序和通知
+                sortByOption: 0  // 新增：排序和通知选项
             };
         }
 
@@ -151,7 +155,8 @@
                     minProfitRateOption: CONFIG.minProfitRateOption,
                     specificItemsOption: CONFIG.specificItemsOption,
                     enableSound: CONFIG.enableSound,  // 新增：保存提示音设置
-                    blacklistIds: CONFIG.blacklistIds  // 新增：保存黑名单ID列表
+                    blacklistIds: CONFIG.blacklistIds,  // 新增：保存黑名单ID列表
+                    sortByOption: CONFIG.sortByOption  // 新增：保存排序和通知选项
                 };
                 localStorage.setItem('w3b_torn_config', JSON.stringify(configToSave));
             } catch (error) {
@@ -280,6 +285,17 @@
                 </div>
                 
                 <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">排序和通知方式</label>
+                    <div style="margin-top: 5px;">
+                        <select id="sortByOption" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                            <option value="0" ${CONFIG.sortByOption === 0 ? 'selected' : ''}>按利润排序和通知</option>
+                            <option value="1" ${CONFIG.sortByOption === 1 ? 'selected' : ''}>按利润率排序和通知</option>
+                        </select>
+                    </div>
+                    <small style="color: #666; font-size: 12px;">选择排序和通知的方式：按利润最高或按利润率最高</small>
+                </div>
+                
+                <div style="margin-bottom: 15px;">
                     <label style="display: flex; align-items: center; margin-bottom: 5px; font-weight: bold;">
                         <input type="checkbox" id="enableSound" ${CONFIG.enableSound ? 'checked' : ''} style="margin-right: 8px;">
                         启用提示音
@@ -309,6 +325,7 @@
                 CONFIG.specificItemsOption = parseInt(document.getElementById('specificItemsOption').value);
                 CONFIG.enableSound = document.getElementById('enableSound').checked;  // 新增：保存提示音设置
                 CONFIG.blacklistIds = document.getElementById('blacklistIds').value.trim();  // 新增：保存黑名单ID列表
+                CONFIG.sortByOption = parseInt(document.getElementById('sortByOption').value);  // 新增：保存排序和通知选项
                 
                 // 保存配置到本地存储
                 saveConfig();
@@ -559,22 +576,40 @@
             const highlightedItems = data.filter(item => item.highlight && !item.isBlacklisted);
             if (highlightedItems.length === 0) return '';
             
-            // 找出收益最高的非黑名单项目
-            const highestProfitItem = highlightedItems.reduce((highest, current) => {
-                const profitCurrent = parseFloat(current.profit.replace(/,/g, '')) || 0;
-                const profitHighest = parseFloat(highest.profit.replace(/,/g, '')) || 0;
-                return profitCurrent > profitHighest ? current : highest;
-            });
+            // 根据配置的排序方式找出最优项目
+            let bestItem;
+            if (CONFIG.sortByOption === 1) {
+                // 按利润率排序
+                bestItem = highlightedItems.reduce((best, current) => {
+                    const rateCurrent = parseFloat(current.profitRate) || 0;
+                    const rateBest = parseFloat(best.profitRate) || 0;
+                    return rateCurrent > rateBest ? current : best;
+                });
+            } else {
+                // 按利润排序（默认）
+                bestItem = highlightedItems.reduce((best, current) => {
+                    const profitCurrent = parseFloat(current.profit.replace(/,/g, '')) || 0;
+                    const profitBest = parseFloat(best.profit.replace(/,/g, '')) || 0;
+                    return profitCurrent > profitBest ? current : best;
+                });
+            }
             
-            return `${highestProfitItem.topriceId}|${highestProfitItem.price}|${highestProfitItem.profit}`;
+            return `${bestItem.topriceId}|${bestItem.price}|${bestItem.profit}|${bestItem.profitRate}`;
         }
 
-        // 发送单个最高收益商品的通知
+        // 发送单个最优商品的通知
         function sendHighestProfitNotification(item) {
             if (!item) return;
             
-            const profit = item.profit ? `，收益: $${item.profit}` : '';
-            const notificationText = `${item.itemName} 满足${item.highlightReason}条件${profit}`;
+            let extraInfo = '';
+            if (CONFIG.sortByOption === 1) {
+                // 按利润率排序时，显示利润率信息
+                extraInfo = item.profitRate ? `，利润率: ${item.profitRate}%` : '';
+            } else {
+                // 按利润排序时，显示利润信息
+                extraInfo = item.profit ? `，收益: $${item.profit}` : '';
+            }
+            const notificationText = `${item.itemName} 满足${item.highlightReason}条件${extraInfo}`;
             
             // 保存物品名称到GM存储，设置15秒过期时间
             if (typeof GM_setValue !== 'undefined') {
@@ -970,21 +1005,32 @@
             if (!isDuplicate) {
                 const newHighlightedItems = extractedData.filter(item => item.highlight);
                 
-                // 如果有高亮项目，只通知收益最高的非黑名单商品
+                // 如果有高亮项目，只通知最优的非黑名单商品
                 if (newHighlightedItems.length > 0) {
                     // 过滤掉黑名单中的商品
                     const nonBlacklistedItems = newHighlightedItems.filter(item => !item.isBlacklisted);
                     
-                    // 如果有非黑名单的高亮项目，找出收益最高的那个
+                    // 如果有非黑名单的高亮项目，找出最优的那个
                     if (nonBlacklistedItems.length > 0) {
-                        const highestProfitItem = nonBlacklistedItems.reduce((highest, current) => {
-                            const profitCurrent = parseFloat(current.profit.replace(/,/g, '')) || 0;
-                            const profitHighest = parseFloat(highest.profit.replace(/,/g, '')) || 0;
-                            return profitCurrent > profitHighest ? current : highest;
-                        });
+                        let bestItem;
+                        if (CONFIG.sortByOption === 1) {
+                            // 按利润率排序
+                            bestItem = nonBlacklistedItems.reduce((best, current) => {
+                                const rateCurrent = parseFloat(current.profitRate) || 0;
+                                const rateBest = parseFloat(best.profitRate) || 0;
+                                return rateCurrent > rateBest ? current : best;
+                            });
+                        } else {
+                            // 按利润排序（默认）
+                            bestItem = nonBlacklistedItems.reduce((best, current) => {
+                                const profitCurrent = parseFloat(current.profit.replace(/,/g, '')) || 0;
+                                const profitBest = parseFloat(best.profit.replace(/,/g, '')) || 0;
+                                return profitCurrent > profitBest ? current : best;
+                            });
+                        }
                         
-                        // 发送最高收益非黑名单商品的通知
-                        sendHighestProfitNotification(highestProfitItem);
+                        // 发送最优非黑名单商品的通知
+                        sendHighestProfitNotification(bestItem);
                     }
                 }
                 
@@ -992,12 +1038,22 @@
                 previousDataState = generateDataState(extractedData);
             }
             
-            // 按照收益从高到低排序
-            extractedData.sort((a, b) => {
-                const profitA = parseFloat(a.profit.replace(/,/g, '')) || 0;
-                const profitB = parseFloat(b.profit.replace(/,/g, '')) || 0;
-                return profitB - profitA; // 从高到低排序
-            });
+            // 根据配置的排序方式排序数据
+            if (CONFIG.sortByOption === 1) {
+                // 按利润率从高到低排序
+                extractedData.sort((a, b) => {
+                    const rateA = parseFloat(a.profitRate) || 0;
+                    const rateB = parseFloat(b.profitRate) || 0;
+                    return rateB - rateA; // 从高到低排序
+                });
+            } else {
+                // 按利润从高到低排序（默认）
+                extractedData.sort((a, b) => {
+                    const profitA = parseFloat(a.profit.replace(/,/g, '')) || 0;
+                    const profitB = parseFloat(b.profit.replace(/,/g, '')) || 0;
+                    return profitB - profitA; // 从高到低排序
+                });
+            }
             
             displayExtractedData(extractedData, isDuplicate);
         }
