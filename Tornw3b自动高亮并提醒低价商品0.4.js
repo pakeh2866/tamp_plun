@@ -940,9 +940,21 @@
                         if (highlightResult.isBlacklisted) {
                             element.style.backgroundColor = '#ff5722'; // 橙红色
                             element.style.transition = 'background-color 0.3s ease';
+                            
+                            // 设置15秒后清除高亮的定时器
+                            setTimeout(() => {
+                                element.style.backgroundColor = '';
+                                console.log('已清除黑名单商品高亮:', itemName);
+                            }, 15000);
                         } else {
                             element.style.backgroundColor = CONFIG.highlightColor;
                             element.style.transition = 'background-color 0.3s ease';
+                            
+                            // 设置15秒后清除高亮的定时器
+                            setTimeout(() => {
+                                element.style.backgroundColor = '';
+                                console.log('已清除商品高亮:', itemName);
+                            }, 15000);
                         }
                     }
                     
