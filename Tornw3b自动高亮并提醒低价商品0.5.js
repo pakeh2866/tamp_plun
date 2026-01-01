@@ -816,11 +816,22 @@
             elements.forEach((element, index) => {
                 try {
                     let itemName = 'N/A';
+                    let linkId = 'N/A'; // 新增：存储链接ID
                     const nameContainer = element.querySelector('.flex-1.min-w-0');
                     if (nameContainer) {
                         const titleElement = nameContainer.querySelector('[title]');
                         if (titleElement && titleElement.getAttribute('title')) {
                             itemName = titleElement.getAttribute('title').trim();
+                            
+                            // 新增：提取href属性中的/item/后面的数字作为linkId
+                            if (titleElement.hasAttribute('href')) {
+                                const href = titleElement.getAttribute('href');
+                                const match = href.match(/\/item\/(\d+)/);
+                                if (match) {
+                                    linkId = match[1];
+                                    console.log(linkId)
+                                }
+                            }
                         } else {
                             const nameElement = nameContainer.querySelector('.item-name, .name, h3, h4, span');
                             if (nameElement) {
@@ -949,6 +960,7 @@
                         highlight: highlightResult.highlight,
                         highlightReason: highlightResult.reasons ? highlightResult.reasons.join(', ') : '',
                         isBlacklisted: highlightResult.isBlacklisted || false,
+                        linkId, // 新增：添加链接ID
                         top1Id,
                         top1Link,
                         top1Quantity,
