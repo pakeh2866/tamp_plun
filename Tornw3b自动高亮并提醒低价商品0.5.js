@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tornw3b自动高亮并提醒低价商品
 // @namespace    https://github.com/pakeh2866
-// @version      0.5
+// @version      0.6
 // @description  w3b中低于某个价格，利润在x%以上的高亮显示,并提醒
 // @author       pakeh[3973672]  如果对你有那么一点点帮助，可以send我一个Xan
 // @match        https://weav3r.dev/favorites
@@ -19,6 +19,9 @@
  * - 修复：优化了商品卡片持续高亮的BUG。
  * - 新增：按利润排序和通知、按利润率排序和通知的功能。
  * - 优化：增加了巴扎高亮增加数量。
+ *
+ * 版本 0.6 (2026-01-01)
+ * - 新增：在获取ID的超链接时，在超链接后面增加&itemId=linkid&highlight=1#/参数。
  *
  * ==================== 使用方法 ====================
  *
@@ -891,6 +894,10 @@
                                 const idLinkElement = idEl.querySelector('a');
                                 if (idLinkElement) {
                                     idLink = idLinkElement.href;
+                                    // 在超链接后面增加&itemId=linkid&highlight=1#/
+                                    if (idLink !== 'N/A' && idText && idText !== 'N/A') {
+                                        idLink = idLink + '&itemId=' + linkId + '&highlight=1#/';
+                                    }
                                 }
                                 
                                 const qMatch = infoText.match(/Q:\s*([\d,]+)/i);
