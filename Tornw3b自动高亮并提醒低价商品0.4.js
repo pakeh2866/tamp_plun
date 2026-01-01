@@ -1558,6 +1558,9 @@
     function mainFunctionB() {
         console.log('主函数B已执行 - 开始实现高亮功能');
         
+        // 高亮物品数量统计
+        let highlightedItemCount = 0;
+        
         // 高亮样式配置
         const HIGHLIGHT_CONFIG = {
             backgroundColor: '#ffeb3b',  // 黄色背景
@@ -1653,22 +1656,27 @@
                     parent.normalize();
                 }
             });
+            
+            // 重置高亮物品数量
+            highlightedItemCount = 0;
         }
 
         // 高亮文本节点中的匹配内容
         function highlightTextNodes(node, searchText) {
-            if (!node || !searchText || searchText.trim() === '') return;
+            if (!node || !searchText || searchText.trim() === '') return 0;
+            
+            let matchCount = 0; // 当前节点的匹配数量
             
             // 跳过脚本、样式等特殊元素
             if (node.nodeType === 1) {
                 const tagName = node.tagName.toLowerCase();
                 if (['script', 'style', 'noscript', 'iframe', 'object', 'embed'].includes(tagName)) {
-                    return;
+                    return 0;
                 }
                 
                 // 跳过已经高亮的元素
                 if (node.classList && node.classList.contains('gm-highlight-b')) {
-                    return;
+                    return 0;
                 }
             }
             
@@ -1682,6 +1690,7 @@
                     
                     if (matches) {
                         console.log('匹配到的内容:', matches);
+                        matchCount = matches.length; // 记录匹配数量
                         const fragment = document.createDocumentFragment();
                         let lastIndex = 0;
                         
@@ -1708,7 +1717,7 @@
                         // 替换原始文本节点
                         if (fragment.childNodes.length > 0) {
                             node.parentNode.replaceChild(fragment, node);
-                            console.log('已高亮文本节点');
+                            console.log('已高亮文本节点，匹配数量:', matchCount);
                         }
                     }
                 }
@@ -1716,9 +1725,11 @@
                 // 递归处理子节点
                 const childNodes = Array.from(node.childNodes);
                 childNodes.forEach(child => {
-                    highlightTextNodes(child, searchText);
+                    matchCount += highlightTextNodes(child, searchText);
                 });
             }
+            
+            return matchCount; // 返回当前节点及其子节点的总匹配数量
         }
 
         // 高亮页面中匹配的文本
@@ -1731,10 +1742,14 @@
             // 清除之前的高亮
             clearPreviousHighlights();
             
+            // 重置高亮物品数量
+            highlightedItemCount = 0;
+            
             // 从body开始递归高亮文本
             if (document.body) {
                 console.log('开始遍历DOM树进行高亮...');
-                highlightTextNodes(document.body, itemName);
+                highlightedItemCount = highlightTextNodes(document.body, itemName);
+                console.log('高亮完成，找到的高亮物品数量:', highlightedItemCount);
                 
                 // 只有在shouldScroll为true时才滚动到第一个高亮元素
                 if (shouldScroll) {
@@ -1754,7 +1769,7 @@
                 console.log('页面body不存在，无法进行高亮');
             }
             
-            console.log('高亮处理完成:', itemName);
+            console.log('高亮处理完成:', itemName, '数量:', highlightedItemCount);
         }
         
         // 滚动到第一个高亮元素
@@ -1818,9 +1833,11 @@
             // 更新面板内容
             if (itemName && itemName.trim() !== '') {
                 const remainingTime = expireTime ? Math.max(0, Math.round((expireTime - Date.now()) / 1000)) : 0;
+                // 显示数量减1，因为状态面板中的物品名称也被计算在内
+                const displayCount = Math.max(0, highlightedItemCount - 1);
                 statusPanel.innerHTML = `
                     <div class="status-title">当前高亮：</div>
-                    <div class="status-text">${itemName}</div>
+                    <div class="status-text">${itemName} (数量: ${displayCount})</div>
                     <div class="status-time">剩余时间：${remainingTime}秒</div>
                 `;
             } else {
@@ -1952,6 +1969,11 @@
                 } else {
                     console.error('GM_setValue 不可用，无法保存测试数据');
                 }
+            };
+            
+            // 添加获取高亮物品数量的函数
+            window.getHighlightedItemCount = function() {
+                return highlightedItemCount;
             };
             
             console.log('=== 主函数B初始化完成 ===');
