@@ -896,7 +896,7 @@
                                     idLink = idLinkElement.href;
                                     // 在超链接后面增加&itemId=linkid&highlight=1#/
                                     if (idLink !== 'N/A' && idText && idText !== 'N/A') {
-                                        idLink = idLink + '&itemId=' + linkId + '&highlight=1#/';
+                                        //idLink = idLink + '&itemId=' + linkId + '&highlight=1#/';
                                     }
                                 }
                                 
