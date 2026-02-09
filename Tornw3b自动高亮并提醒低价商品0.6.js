@@ -1,11 +1,10 @@
 // ==UserScript==
-// @name         Tornw3b自动高亮并提醒低价商品0.4
+// @name         Tornw3b自动高亮并提醒低价商品
 // @namespace    https://github.com/pakeh2866
-// @version      0.4
+// @version      0.6
 // @description  w3b中低于某个价格，利润在x%以上的高亮显示,并提醒
 // @author       pakeh[3973672]  如果对你有那么一点点帮助，可以send我一个Xan
 // @match        https://weav3r.dev/favorites
-// @match        https://www.torn.com/bazaar.php?userId=*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=torn.com
 // @grant        GM_notification
 // @grant        GM_setValue
@@ -16,10 +15,13 @@
 /*
  * ==================== 更新日志 ====================
  *
- * 版本 0.4 (2025-12-23)
- * - 修复：优化了特定品种条件的数量条件
- * - 新增：添加了黑名单功能，可忽略特定ID的商品并以橙红色高亮显示
- * - 优化：增加了巴扎高亮
+ * 版本 0.5 (2026-01-01)
+ * - 修复：优化了商品卡片持续高亮的BUG。
+ * - 新增：按利润排序和通知、按利润率排序和通知的功能。
+ * - 优化：增加了巴扎高亮增加数量。
+ *
+ * 版本 0.6 (2026-01-01)
+ * - 新增：在获取ID的超链接时，在超链接后面增加&itemId=linkid&highlight=1#/参数。
  *
  * ==================== 使用方法 ====================
  *
@@ -114,7 +116,9 @@
                         profitColor: '#4caf50',
                         lossColor: '#f44336',
                         enableSound: parsed.enableSound !== undefined ? parsed.enableSound : true,  // 新增：是否启用提示音
-                        blacklistIds: parsed.blacklistIds || ''  // 新增：黑名单ID列表
+                        blacklistIds: parsed.blacklistIds || '',  // 新增：黑名单ID列表
+                        // 排序和通知选项：0=按利润排序和通知，1=按利润率排序和通知
+                        sortByOption: parsed.sortByOption !== undefined ? parsed.sortByOption : 0  // 新增：排序和通知选项
                     };
                 }
             } catch (error) {
@@ -136,7 +140,9 @@
                 profitColor: '#4caf50',
                 lossColor: '#f44336',
                 enableSound: true,  // 新增：是否启用提示音
-                blacklistIds: ''  // 新增：黑名单ID列表
+                blacklistIds: '',  // 新增：黑名单ID列表
+                // 排序和通知选项：0=按利润排序和通知，1=按利润率排序和通知
+                sortByOption: 0  // 新增：排序和通知选项
             };
         }
 
@@ -151,7 +157,8 @@
                     minProfitRateOption: CONFIG.minProfitRateOption,
                     specificItemsOption: CONFIG.specificItemsOption,
                     enableSound: CONFIG.enableSound,  // 新增：保存提示音设置
-                    blacklistIds: CONFIG.blacklistIds  // 新增：保存黑名单ID列表
+                    blacklistIds: CONFIG.blacklistIds,  // 新增：保存黑名单ID列表
+                    sortByOption: CONFIG.sortByOption  // 新增：保存排序和通知选项
                 };
                 localStorage.setItem('w3b_torn_config', JSON.stringify(configToSave));
             } catch (error) {
@@ -161,68 +168,6 @@
 
         // 全局样式配置
         const CONFIG = loadConfig();
-        
-        // 检测页面主题
-        function isDarkMode() {
-            // 检查body是否有dark-mode类
-            if (document.body.classList.contains('dark-mode')) {
-                return true;
-            }
-            
-            // 检查html元素是否有dark-mode类
-            if (document.documentElement.classList.contains('dark-mode')) {
-                return true;
-            }
-            
-            // 检查是否有其他暗色主题相关的类或属性
-            if (document.body.getAttribute('data-theme') === 'dark') {
-                return true;
-            }
-            
-            // 通过计算样式检测背景色是否为暗色
-            const bgColor = window.getComputedStyle(document.body).backgroundColor;
-            if (bgColor) {
-                // 将rgb颜色转换为亮度值
-                const rgb = bgColor.match(/\d+/g);
-                if (rgb && rgb.length >= 3) {
-                    const brightness = (parseInt(rgb[0]) * 299 + parseInt(rgb[1]) * 587 + parseInt(rgb[2]) * 114) / 1000;
-                    if (brightness < 128) {
-                        return true;
-                    }
-                }
-            }
-            
-            return false;
-        }
-        
-        // 获取主题相关的颜色配置
-        function getThemeColors() {
-            const darkMode = isDarkMode();
-            return {
-                isDarkMode: darkMode,
-                // 背景色
-                background: darkMode ? '#1a1a1a' : '#ffffff',
-                secondaryBackground: darkMode ? '#2d2d2d' : '#f8f9fa',
-                tertiaryBackground: darkMode ? '#404040' : '#e9ecef',
-                // 边框色
-                border: darkMode ? '#555555' : '#dddddd',
-                // 文字色
-                text: darkMode ? '#ffffff' : '#333333',
-                secondaryText: darkMode ? '#cccccc' : '#666666',
-                // 表格相关
-                tableHeader: darkMode ? 'linear-gradient(135deg, #4a5568 0%, #2d3748 100%)' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                tableRowHover: darkMode ? '#333333' : '#f5f5f5',
-                // 按钮色
-                buttonPrimary: darkMode ? '#4a5568' : '#007bff',
-                buttonSecondary: darkMode ? '#404040' : '#6c757d',
-                // 高亮色
-                highlight: darkMode ? '#4a5568' : '#fff3cd',
-                lightHighlight: darkMode ? '#2d3748' : '#fff9c4',
-                // 面板背景
-                panelBackground: darkMode ? '#2d2d2d' : '#ffffff',
-                panelBorder: darkMode ? '#555555' : '#333333'
-            };
-        }
 
         // 创建设置按钮元素
         function createSettingButton() {
@@ -256,9 +201,6 @@
                 return;
             }
 
-            // 获取主题颜色
-            const theme = getThemeColors();
-
             const panel = document.createElement('div');
             panel.id = 'settings-panel';
             panel.style.cssText = `
@@ -266,8 +208,8 @@
                 top: 50%;
                 left: 50%;
                 transform: translate(-50%, -50%);
-                background: ${theme.panelBackground};
-                border: 2px solid ${theme.panelBorder};
+                background: white;
+                border: 2px solid #333;
                 border-radius: 12px;
                 padding: 20px;
                 z-index: 10001;
@@ -277,15 +219,14 @@
                 max-width: 500px;
                 max-height: 80vh;
                 overflow-y: auto;
-                color: ${theme.text};
             `;
 
             panel.innerHTML = `
-                <h3 style="margin: 0 0 15px 0; color: ${theme.text};">设置参数</h3>
+                <h3 style="margin: 0 0 15px 0; color: #333;">设置参数</h3>
                 
-                <div style="margin-bottom: 20px; padding: 15px; background: ${theme.secondaryBackground}; border-radius: 8px;">
-                    <h4 style="margin: 0 0 10px 0; color: ${theme.secondaryText}; font-size: 14px;">条件选项说明</h4>
-                    <p style="margin: 0; font-size: 12px; color: ${theme.secondaryText}; line-height: 1.4;">
+                <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                    <h4 style="margin: 0 0 10px 0; color: #666; font-size: 14px;">条件选项说明</h4>
+                    <p style="margin: 0; font-size: 12px; color: #666; line-height: 1.4;">
                         <strong>最小利润/利润率条件选项：</strong><br>
                         <strong>关闭</strong>：不使用此条件<br>
                         <strong>必须满足</strong>：必须满足此条件才会提醒<br>
@@ -297,10 +238,10 @@
                 </div>
                 
                 <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; font-weight: bold; color: ${theme.text};">最小利润: $</label>
-                    <input type="number" id="minProfit" value="${CONFIG.minProfit}" style="width: 100%; padding: 8px; border: 1px solid ${theme.border}; border-radius: 4px; background: ${theme.background}; color: ${theme.text};">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">最小利润: $</label>
+                    <input type="number" id="minProfit" value="${CONFIG.minProfit}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                     <div style="margin-top: 5px;">
-                        <select id="minProfitOption" style="width: 100%; padding: 6px; border: 1px solid ${theme.border}; border-radius: 4px; background: ${theme.background}; color: ${theme.text};">
+                        <select id="minProfitOption" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
                             <option value="0" ${CONFIG.minProfitOption === 0 ? 'selected' : ''}>关闭</option>
                             <option value="1" ${CONFIG.minProfitOption === 1 ? 'selected' : ''}>必须满足</option>
                             <option value="2" ${CONFIG.minProfitOption === 2 ? 'selected' : ''}>只要满足就提醒</option>
@@ -309,53 +250,64 @@
                 </div>
                 
                 <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; font-weight: bold; color: ${theme.text};">最小利润率: %</label>
-                    <input type="number" id="minProfitRate" value="${CONFIG.minProfitRate}" step="0.1" style="width: 100%; padding: 8px; border: 1px solid ${theme.border}; border-radius: 4px; background: ${theme.background}; color: ${theme.text};">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">最小利润率: %</label>
+                    <input type="number" id="minProfitRate" value="${CONFIG.minProfitRate}" step="0.1" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                     <div style="margin-top: 5px;">
-                        <select id="minProfitRateOption" style="width: 100%; padding: 6px; border: 1px solid ${theme.border}; border-radius: 4px; background: ${theme.background}; color: ${theme.text};">
+                        <select id="minProfitRateOption" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
                             <option value="0" ${CONFIG.minProfitRateOption === 0 ? 'selected' : ''}>关闭</option>
                             <option value="1" ${CONFIG.minProfitRateOption === 1 ? 'selected' : ''}>必须满足</option>
                             <option value="2" ${CONFIG.minProfitRateOption === 2 ? 'selected' : ''}>只要满足就提醒</option>
                         </select>
                     </div>
-                    <small style="color: ${theme.secondaryText}; font-size: 12px;">当利润率大于此值时进行提醒</small>
+                    <small style="color: #666; font-size: 12px;">当利润率大于此值时进行提醒</small>
                 </div>
                 
                 <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; font-weight: bold; color: ${theme.text};">特定品种提醒</label>
-                    <textarea id="specificItems" style="width: 100%; padding: 8px; border: 1px solid ${theme.border}; border-radius: 4px; resize: vertical; min-height: 60px; background: ${theme.background}; color: ${theme.text};">${CONFIG.specificItems}</textarea>
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">特定品种提醒</label>
+                    <textarea id="specificItems" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; resize: vertical; min-height: 60px;">${CONFIG.specificItems}</textarea>
                     <div style="margin-top: 5px;">
-                        <select id="specificItemsOption" style="width: 100%; padding: 6px; border: 1px solid ${theme.border}; border-radius: 4px; background: ${theme.background}; color: ${theme.text};">
+                        <select id="specificItemsOption" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
                             <option value="0" ${CONFIG.specificItemsOption === 0 ? 'selected' : ''}>关闭</option>
                             <option value="1" ${CONFIG.specificItemsOption === 1 ? 'selected' : ''}>启用</option>
                         </select>
                     </div>
-                    <small style="color: ${theme.secondaryText}; font-size: 12px;">格式：物品1,数量,价格;物品2,数量,价格 例如：Xanax,3,810000;Panda Plushie,3,58000</small>
+                    <small style="color: #666; font-size: 12px;">格式：物品1,数量,价格;物品2,数量,价格 例如：Xanax,3,810000;Panda Plushie,3,58000</small>
                     <p style="margin: 5px 0 0 0; font-size: 12px; color: #ff6b6b; line-height: 1.4;">
                         <strong>注意</strong>：启用后，特定品种中的商品需先满足特定品种条件，其他商品直接判断其他条件
                     </p>
                 </div>
                 
                 <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; font-weight: bold; color: ${theme.text};">黑名单ID</label>
-                    <input type="text" id="blacklistIds" value="${CONFIG.blacklistIds}" style="width: 100%; padding: 8px; border: 1px solid ${theme.border}; border-radius: 4px; background: ${theme.background}; color: ${theme.text};">
-                    <small style="color: ${theme.secondaryText}; font-size: 12px;">格式：用逗号分隔的ID列表，例如：xingchen,pakeh</small>
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">黑名单ID</label>
+                    <input type="text" id="blacklistIds" value="${CONFIG.blacklistIds}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <small style="color: #666; font-size: 12px;">格式：用逗号分隔的ID列表，例如：xingchen,pakeh</small>
                     <p style="margin: 5px 0 0 0; font-size: 12px; color: #ff6b6b; line-height: 1.4;">
                         <strong>注意</strong>：如果商品ID在黑名单中，该商品将被忽略并以橙红色高亮显示
                     </p>
                 </div>
                 
                 <div style="margin-bottom: 15px;">
-                    <label style="display: flex; align-items: center; margin-bottom: 5px; font-weight: bold; color: ${theme.text};">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">排序和通知方式</label>
+                    <div style="margin-top: 5px;">
+                        <select id="sortByOption" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                            <option value="0" ${CONFIG.sortByOption === 0 ? 'selected' : ''}>按利润排序和通知</option>
+                            <option value="1" ${CONFIG.sortByOption === 1 ? 'selected' : ''}>按利润率排序和通知</option>
+                        </select>
+                    </div>
+                    <small style="color: #666; font-size: 12px;">选择排序和通知的方式：按利润最高或按利润率最高</small>
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <label style="display: flex; align-items: center; margin-bottom: 5px; font-weight: bold;">
                         <input type="checkbox" id="enableSound" ${CONFIG.enableSound ? 'checked' : ''} style="margin-right: 8px;">
                         启用提示音
                     </label>
-                    <small style="color: ${theme.secondaryText}; font-size: 12px;">在发现符合条件的商品时播放提示音</small>
+                    <small style="color: #666; font-size: 12px;">在发现符合条件的商品时播放提示音</small>
                 </div>
                 
                 <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                    <button id="cancelBtn" style="padding: 8px 16px; border: 1px solid ${theme.border}; border-radius: 4px; background: ${theme.buttonSecondary}; color: ${theme.text}; cursor: pointer;">取消</button>
-                    <button id="saveBtn" style="padding: 8px 16px; border: none; border-radius: 4px; background: ${theme.buttonPrimary}; color: white; cursor: pointer;">保存</button>
+                    <button id="cancelBtn" style="padding: 8px 16px; border: 1px solid #ddd; border-radius: 4px; background: white; cursor: pointer;">取消</button>
+                    <button id="saveBtn" style="padding: 8px 16px; border: none; border-radius: 4px; background: #007bff; color: white; cursor: pointer;">保存</button>
                 </div>
             `;
 
@@ -375,6 +327,7 @@
                 CONFIG.specificItemsOption = parseInt(document.getElementById('specificItemsOption').value);
                 CONFIG.enableSound = document.getElementById('enableSound').checked;  // 新增：保存提示音设置
                 CONFIG.blacklistIds = document.getElementById('blacklistIds').value.trim();  // 新增：保存黑名单ID列表
+                CONFIG.sortByOption = parseInt(document.getElementById('sortByOption').value);  // 新增：保存排序和通知选项
                 
                 // 保存配置到本地存储
                 saveConfig();
@@ -418,77 +371,11 @@
             }
         }
         
-        // 监听主题变化
-        function setupThemeObserver() {
-            // 创建一个MutationObserver来监听body和html元素的类变化
-            const observer = new MutationObserver(function(mutations) {
-                mutations.forEach(function(mutation) {
-                    if (mutation.type === 'attributes' &&
-                        (mutation.attributeName === 'class' || mutation.attributeName === 'data-theme')) {
-                        // 主题可能已更改，重新渲染表格和设置面板
-                        console.log('检测到主题变化，重新渲染界面');
-                        
-                        // 如果表格存在，重新渲染
-                        const existingDisplay = document.getElementById('item-data-display');
-                        if (existingDisplay) {
-                            // 保存当前数据
-                            const table = existingDisplay.querySelector('table');
-                            if (table) {
-                                const rows = table.querySelectorAll('tbody tr');
-                                const data = [];
-                                rows.forEach(row => {
-                                    const cells = row.querySelectorAll('td');
-                                    if (cells.length >= 8) {
-                                        data.push({
-                                            itemName: cells[0].textContent,
-                                            mrkt: cells[1].textContent,
-                                            topriceId: cells[2].textContent,
-                                            quantity: cells[3].textContent,
-                                            price: cells[4].textContent,
-                                            priceDiff: cells[5].textContent,
-                                            profit: cells[6].textContent,
-                                            profitRate: cells[7].textContent
-                                        });
-                                    }
-                                });
-                                
-                                // 重新显示数据
-                                if (data.length > 0) {
-                                    displayExtractedData(data, false);
-                                }
-                            }
-                        }
-                        
-                        // 如果设置面板存在，重新渲染
-                        const existingPanel = document.getElementById('settings-panel');
-                        if (existingPanel) {
-                            existingPanel.remove();
-                            showSettingsPanel();
-                        }
-                    }
-                });
-            });
-            
-            // 监听body和html元素
-            observer.observe(document.body, {
-                attributes: true,
-                attributeFilter: ['class', 'data-theme']
-            });
-            
-            observer.observe(document.documentElement, {
-                attributes: true,
-                attributeFilter: ['class', 'data-theme']
-            });
-        }
-        
         // 页面加载完成后执行
         window.addEventListener('load', function() {
             // 页面完全加载后初始化设置按钮
             console.log('页面加载完成，准备插入设置按钮');
             insertSettingButton();
-            
-            // 设置主题监听器
-            setupThemeObserver();
         });
         
         // 使用MutationObserver监听DOM变化
@@ -691,22 +578,40 @@
             const highlightedItems = data.filter(item => item.highlight && !item.isBlacklisted);
             if (highlightedItems.length === 0) return '';
             
-            // 找出收益最高的非黑名单项目
-            const highestProfitItem = highlightedItems.reduce((highest, current) => {
-                const profitCurrent = parseFloat(current.profit.replace(/,/g, '')) || 0;
-                const profitHighest = parseFloat(highest.profit.replace(/,/g, '')) || 0;
-                return profitCurrent > profitHighest ? current : highest;
-            });
+            // 根据配置的排序方式找出最优项目
+            let bestItem;
+            if (CONFIG.sortByOption === 1) {
+                // 按利润率排序
+                bestItem = highlightedItems.reduce((best, current) => {
+                    const rateCurrent = parseFloat(current.profitRate) || 0;
+                    const rateBest = parseFloat(best.profitRate) || 0;
+                    return rateCurrent > rateBest ? current : best;
+                });
+            } else {
+                // 按利润排序（默认）
+                bestItem = highlightedItems.reduce((best, current) => {
+                    const profitCurrent = parseFloat(current.profit.replace(/,/g, '')) || 0;
+                    const profitBest = parseFloat(best.profit.replace(/,/g, '')) || 0;
+                    return profitCurrent > profitBest ? current : best;
+                });
+            }
             
-            return `${highestProfitItem.topriceId}|${highestProfitItem.price}|${highestProfitItem.profit}`;
+            return `${bestItem.topriceId}|${bestItem.price}|${bestItem.profit}|${bestItem.profitRate}`;
         }
 
-        // 发送单个最高收益商品的通知
+        // 发送单个最优商品的通知
         function sendHighestProfitNotification(item) {
             if (!item) return;
             
-            const profit = item.profit ? `，收益: $${item.profit}` : '';
-            const notificationText = `${item.itemName} 满足${item.highlightReason}条件${profit}`;
+            let extraInfo = '';
+            if (CONFIG.sortByOption === 1) {
+                // 按利润率排序时，显示利润率信息
+                extraInfo = item.profitRate ? `，利润率: ${item.profitRate}%` : '';
+            } else {
+                // 按利润排序时，显示利润信息
+                extraInfo = item.profit ? `，收益: $${item.profit}` : '';
+            }
+            const notificationText = `${item.itemName} 满足${item.highlightReason}条件${extraInfo}`;
             
             // 保存物品名称到GM存储，设置15秒过期时间
             if (typeof GM_setValue !== 'undefined') {
@@ -914,11 +819,22 @@
             elements.forEach((element, index) => {
                 try {
                     let itemName = 'N/A';
+                    let linkId = 'N/A'; // 新增：存储链接ID
                     const nameContainer = element.querySelector('.flex-1.min-w-0');
                     if (nameContainer) {
                         const titleElement = nameContainer.querySelector('[title]');
                         if (titleElement && titleElement.getAttribute('title')) {
                             itemName = titleElement.getAttribute('title').trim();
+                            
+                            // 新增：提取href属性中的/item/后面的数字作为linkId
+                            if (titleElement.hasAttribute('href')) {
+                                const href = titleElement.getAttribute('href');
+                                const match = href.match(/\/item\/(\d+)/);
+                                if (match) {
+                                    linkId = match[1];
+                                    console.log(linkId)
+                                }
+                            }
                         } else {
                             const nameElement = nameContainer.querySelector('.item-name, .name, h3, h4, span');
                             if (nameElement) {
@@ -978,6 +894,10 @@
                                 const idLinkElement = idEl.querySelector('a');
                                 if (idLinkElement) {
                                     idLink = idLinkElement.href;
+                                    // 在超链接后面增加&itemId=linkid&highlight=1#/
+                                    if (idLink !== 'N/A' && idText && idText !== 'N/A') {
+                                        //idLink = idLink + '&itemId=' + linkId + '&highlight=1#/';
+                                    }
                                 }
                                 
                                 const qMatch = infoText.match(/Q:\s*([\d,]+)/i);
@@ -1047,6 +967,7 @@
                         highlight: highlightResult.highlight,
                         highlightReason: highlightResult.reasons ? highlightResult.reasons.join(', ') : '',
                         isBlacklisted: highlightResult.isBlacklisted || false,
+                        linkId, // 新增：添加链接ID
                         top1Id,
                         top1Link,
                         top1Quantity,
@@ -1072,9 +993,21 @@
                         if (highlightResult.isBlacklisted) {
                             element.style.backgroundColor = '#ff5722'; // 橙红色
                             element.style.transition = 'background-color 0.3s ease';
+                            
+                            // 设置30秒后清除高亮的定时器
+                            setTimeout(() => {
+                                element.style.backgroundColor = '';
+                                console.log('已清除黑名单商品高亮:', itemName);
+                            }, 30000);
                         } else {
                             element.style.backgroundColor = CONFIG.highlightColor;
                             element.style.transition = 'background-color 0.3s ease';
+                            
+                            // 设置30秒后清除高亮的定时器
+                            setTimeout(() => {
+                                element.style.backgroundColor = '';
+                                console.log('已清除商品高亮:', itemName);
+                            }, 30000);
                         }
                     }
                     
@@ -1090,21 +1023,32 @@
             if (!isDuplicate) {
                 const newHighlightedItems = extractedData.filter(item => item.highlight);
                 
-                // 如果有高亮项目，只通知收益最高的非黑名单商品
+                // 如果有高亮项目，只通知最优的非黑名单商品
                 if (newHighlightedItems.length > 0) {
                     // 过滤掉黑名单中的商品
                     const nonBlacklistedItems = newHighlightedItems.filter(item => !item.isBlacklisted);
                     
-                    // 如果有非黑名单的高亮项目，找出收益最高的那个
+                    // 如果有非黑名单的高亮项目，找出最优的那个
                     if (nonBlacklistedItems.length > 0) {
-                        const highestProfitItem = nonBlacklistedItems.reduce((highest, current) => {
-                            const profitCurrent = parseFloat(current.profit.replace(/,/g, '')) || 0;
-                            const profitHighest = parseFloat(highest.profit.replace(/,/g, '')) || 0;
-                            return profitCurrent > profitHighest ? current : highest;
-                        });
+                        let bestItem;
+                        if (CONFIG.sortByOption === 1) {
+                            // 按利润率排序
+                            bestItem = nonBlacklistedItems.reduce((best, current) => {
+                                const rateCurrent = parseFloat(current.profitRate) || 0;
+                                const rateBest = parseFloat(best.profitRate) || 0;
+                                return rateCurrent > rateBest ? current : best;
+                            });
+                        } else {
+                            // 按利润排序（默认）
+                            bestItem = nonBlacklistedItems.reduce((best, current) => {
+                                const profitCurrent = parseFloat(current.profit.replace(/,/g, '')) || 0;
+                                const profitBest = parseFloat(best.profit.replace(/,/g, '')) || 0;
+                                return profitCurrent > profitBest ? current : best;
+                            });
+                        }
                         
-                        // 发送最高收益非黑名单商品的通知
-                        sendHighestProfitNotification(highestProfitItem);
+                        // 发送最优非黑名单商品的通知
+                        sendHighestProfitNotification(bestItem);
                     }
                 }
                 
@@ -1112,12 +1056,22 @@
                 previousDataState = generateDataState(extractedData);
             }
             
-            // 按照收益从高到低排序
-            extractedData.sort((a, b) => {
-                const profitA = parseFloat(a.profit.replace(/,/g, '')) || 0;
-                const profitB = parseFloat(b.profit.replace(/,/g, '')) || 0;
-                return profitB - profitA; // 从高到低排序
-            });
+            // 根据配置的排序方式排序数据
+            if (CONFIG.sortByOption === 1) {
+                // 按利润率从高到低排序
+                extractedData.sort((a, b) => {
+                    const rateA = parseFloat(a.profitRate) || 0;
+                    const rateB = parseFloat(b.profitRate) || 0;
+                    return rateB - rateA; // 从高到低排序
+                });
+            } else {
+                // 按利润从高到低排序（默认）
+                extractedData.sort((a, b) => {
+                    const profitA = parseFloat(a.profit.replace(/,/g, '')) || 0;
+                    const profitB = parseFloat(b.profit.replace(/,/g, '')) || 0;
+                    return profitB - profitA; // 从高到低排序
+                });
+            }
             
             displayExtractedData(extractedData, isDuplicate);
         }
@@ -1131,9 +1085,6 @@
             }
             
             window.isDisplaying = true;
-            
-            // 获取主题颜色
-            const theme = getThemeColors();
             
             // 创建一个美观的数据展示面板，以表格形式显示提取的商品数据
             const existingDisplay = document.getElementById('item-data-display');
@@ -1149,8 +1100,8 @@
             displayContainer.style.cssText = `
                 width: 100%;
                 margin-top: 20px;
-                background: ${theme.isDarkMode ? 'linear-gradient(135deg, #2d3748 0%, #1a202c 100%)' : 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'};
-                border: 1px solid ${theme.border};
+                background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+                border: 1px solid #ddd;
                 border-radius: 12px;
                 padding: 20px;
                 font-family: 'Arial', sans-serif;
@@ -1166,12 +1117,12 @@
                 align-items: center;
                 margin-bottom: 15px;
                 padding-bottom: 10px;
-                border-bottom: 2px solid ${theme.border};
+                border-bottom: 2px solid #e0e0e0;
             `;
             
             const title = document.createElement('h2');
             title.textContent = `商品数据分析 (${data.length} 项)`;
-            title.style.cssText = `margin: 0; color: ${theme.text}; font-size: 20px; font-weight: bold;`;
+            title.style.cssText = 'margin: 0; color: #333; font-size: 20px; font-weight: bold;';
             header.appendChild(title);
             
             const controls = document.createElement('div');
@@ -1180,7 +1131,7 @@
             const stats = document.createElement('span');
             const highlighted = data.filter(item => item.highlight).length;
             stats.textContent = `高亮: ${highlighted}/${data.length}`;
-            stats.style.cssText = `color: ${theme.secondaryText}; font-size: 14px;`;
+            stats.style.cssText = 'color: #666; font-size: 14px;';
             controls.appendChild(stats);
             
             const closeButton = document.createElement('button');
@@ -1240,7 +1191,7 @@
                 table.style.cssText = `
                     width: 100%;
                     border-collapse: collapse;
-                    background: ${theme.background};
+                    background: white;
                     border-radius: 8px;
                     overflow: hidden;
                     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
@@ -1250,7 +1201,7 @@
                 
                 const thead = document.createElement('thead');
                 thead.innerHTML = `
-                    <tr style="background: ${theme.tableHeader}; color: white;">
+                    <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
                         <th style="padding: 12px 8px; text-align: left; font-weight: 600;">物品</th>
                         <th style="padding: 12px 8px; text-align: right; font-weight: 600;">Mrkt</th>
                         <th style="padding: 12px 8px; text-align: right; font-weight: 600;">ID</th>
@@ -1271,29 +1222,17 @@
                     let highlightColor = '';
                     if (item.highlight) {
                         if (item.isBlacklisted) {
-                            highlightColor = theme.isDarkMode ? '#8b2500' : '#ffccbc'; // 橙红色浅色版本
+                            highlightColor = '#ffccbc'; // 橙红色浅色版本
                         } else {
-                            highlightColor = isDuplicate ? theme.lightHighlight : theme.highlight;
+                            highlightColor = isDuplicate ? CONFIG.lightHighlightColor : '#fff3cd';
                         }
                     }
                     
                     row.style.cssText = `
-                        border-bottom: 1px solid ${theme.border};
+                        border-bottom: 1px solid #eee;
                         ${highlightColor ? `background-color: ${highlightColor};` : ''}
                     `;
                     row.classList.add('data-row');
-                    
-                    // 添加悬停效果
-                    row.addEventListener('mouseenter', function() {
-                        if (!highlightColor) {
-                            this.style.backgroundColor = theme.tableRowHover;
-                        }
-                    });
-                    row.addEventListener('mouseleave', function() {
-                        if (!highlightColor) {
-                            this.style.backgroundColor = 'transparent';
-                        }
-                    });
                     
                     // 检查行是否有点击事件监听器可能干扰链接点击
                     row.addEventListener('click', function(e) {
@@ -1314,7 +1253,7 @@
                     nameCell.textContent = item.itemName;
                     
                     const mrktCell = document.createElement('td');
-                    mrktCell.style.cssText = `padding: 10px 8px; text-align: right; color: ${theme.secondaryText};`;
+                    mrktCell.style.cssText = 'padding: 10px 8px; text-align: right; color: #666;';
                     mrktCell.textContent = formatNumber(item.mrkt);
                     
                     const idCell = document.createElement('td');
@@ -1325,7 +1264,7 @@
                         const link = document.createElement('a');
                         link.href = item.topriceLink;
                         link.target = '_blank';
-                        link.style.cssText = `color: ${theme.buttonPrimary}; text-decoration: underline; cursor: pointer; font-family: monospace; font-size: 12px; display: inline-block; position: relative; z-index: 10; pointer-events: auto; user-select: none; min-width: 50px; min-height: 20px;`;
+                        link.style.cssText = 'color: #007bff; text-decoration: underline; cursor: pointer; font-family: monospace; font-size: 12px; display: inline-block; position: relative; z-index: 10; pointer-events: auto; user-select: none; min-width: 50px; min-height: 20px;';
                         link.textContent = item.topriceId;
                         
                         // 添加点击事件处理，确保链接能够正常打开
@@ -1415,12 +1354,12 @@
                         
                         // 添加悬停效果
                         link.addEventListener('mouseenter', function() {
-                            this.style.color = theme.isDarkMode ? '#66b3ff' : '#0056b3';
+                            this.style.color = '#0056b3';
                             this.style.textDecoration = 'underline';
                         });
                         
                         link.addEventListener('mouseleave', function() {
-                            this.style.color = theme.buttonPrimary;
+                            this.style.color = '#007bff';
                             this.style.textDecoration = 'underline';
                         });
                         
@@ -1473,14 +1412,14 @@
                     align-items: center;
                     margin-top: 15px;
                     padding-top: 10px;
-                    border-top: 1px solid ${theme.border};
+                    border-top: 1px solid #e0e0e0;
                 `;
                 
                 const refreshButton = document.createElement('button');
                 refreshButton.textContent = '📊 逻辑和计算说明';
                 refreshButton.style.cssText = `
                     padding: 10px 20px;
-                    background: ${theme.tableHeader};
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                     color: white;
                     border: none;
                     border-radius: 6px;
@@ -1500,7 +1439,7 @@
             } else {
                 const noData = document.createElement('p');
                 noData.textContent = '未找到商品数据，请确保页面已完全加载。';
-                noData.style.cssText = `text-align: center; color: ${theme.secondaryText}; font-size: 16px; padding: 40px;`;
+                noData.style.cssText = 'text-align: center; color: #666; font-size: 16px; padding: 40px;';
                 displayContainer.appendChild(noData);
             }
             
@@ -1515,8 +1454,8 @@
                     left: 10px;
                     width: 1100px;
                     max-height: 85vh;
-                    background: ${theme.isDarkMode ? 'linear-gradient(135deg, #2d3748 0%, #1a202c 100%)' : 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'};
-                    border: 1px solid ${theme.border};
+                    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+                    border: 1px solid #ddd;
                     border-radius: 12px;
                     padding: 20px;
                     z-index: 10000;
@@ -1543,9 +1482,6 @@
                 return;
             }
 
-            // 获取主题颜色
-            const theme = getThemeColors();
-
             const panel = document.createElement('div');
             panel.id = 'calculation-logic-panel';
             panel.style.cssText = `
@@ -1553,8 +1489,8 @@
                 top: 50%;
                 left: 50%;
                 transform: translate(-50%, -50%);
-                background: ${theme.panelBackground};
-                border: 2px solid ${theme.panelBorder};
+                background: white;
+                border: 2px solid #333;
                 border-radius: 12px;
                 padding: 25px;
                 z-index: 10002;
@@ -1563,23 +1499,22 @@
                 max-width: 800px;
                 max-height: 80vh;
                 overflow-y: auto;
-                color: ${theme.text};
             `;
 
             panel.innerHTML = `
-                <h2 style="margin: 0 0 20px 0; color: ${theme.text}; text-align: center; font-size: 24px;">📊 商品数据分析计算逻辑说明</h2>
+                <h2 style="margin: 0 0 20px 0; color: #333; text-align: center; font-size: 24px;">📊 商品数据分析计算逻辑说明</h2>
                 
                 <div style="margin-bottom: 20px;">
-                    <h3 style="color: ${theme.isDarkMode ? '#9ca3af' : '#667eea'}; margin-bottom: 10px;">🎯 脚本功能概述</h3>
-                    <p style="line-height: 1.6; color: ${theme.secondaryText};">
+                    <h3 style="color: #667eea; margin-bottom: 10px;">🎯 脚本功能概述</h3>
+                    <p style="line-height: 1.6; color: #555;">
                         本脚本用于自动分析 w3b 网站上的商品数据，识别低于设定价格且利润达到指定阈值的商品，
                         并通过高亮显示和数据表格的形式展示分析结果。
                     </p>
                 </div>
                 
                 <div style="margin-bottom: 20px;">
-                    <h3 style="color: ${theme.isDarkMode ? '#9ca3af' : '#667eea'}; margin-bottom: 10px;">⚙️ 当前配置参数</h3>
-                    <ul style="line-height: 1.8; color: ${theme.secondaryText}; padding-left: 20px;">
+                    <h3 style="color: #667eea; margin-bottom: 10px;">⚙️ 当前配置参数</h3>
+                    <ul style="line-height: 1.8; color: #555; padding-left: 20px;">
                         <li><strong>最小利润阈值：</strong> $${CONFIG.minProfit.toLocaleString()}
                             (${CONFIG.minProfitOption === 0 ? '关闭' : CONFIG.minProfitOption === 1 ? '必须满足' : '只要满足就提醒'})</li>
                         <li><strong>最小利润率阈值：</strong> ${CONFIG.minProfitRate}%
@@ -1592,37 +1527,37 @@
                 </div>
                 
                 <div style="margin-bottom: 20px;">
-                    <h3 style="color: ${theme.isDarkMode ? '#9ca3af' : '#667eea'}; margin-bottom: 10px;">📈 核心计算逻辑</h3>
-                    <div style="background: ${theme.secondaryBackground}; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                        <h4 style="color: ${theme.text}; margin-bottom: 8px;">1. 价差计算</h4>
+                    <h3 style="color: #667eea; margin-bottom: 10px;">📈 核心计算逻辑</h3>
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                        <h4 style="color: #333; margin-bottom: 8px;">1. 价差计算</h4>
                         <p style="margin: 0; font-family: monospace; color: #2196f3;">
                             价差 = 市场价格 (Mrkt) - 商品价格 (Price)
                         </p>
                     </div>
                     
-                    <div style="background: ${theme.secondaryBackground}; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                        <h4 style="color: ${theme.text}; margin-bottom: 8px;">2. 总收益计算</h4>
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                        <h4 style="color: #333; margin-bottom: 8px;">2. 总收益计算</h4>
                         <p style="margin: 0; font-family: monospace; color: #4caf50;">
                             总收益 = 价差 × 商品数量 (Quantity)
                         </p>
                     </div>
                     
-                    <div style="background: ${theme.secondaryBackground}; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                        <h4 style="color: ${theme.text}; margin-bottom: 8px;">3. 利润率计算</h4>
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                        <h4 style="color: #333; margin-bottom: 8px;">3. 利润率计算</h4>
                         <p style="margin: 0; font-family: monospace; color: #ff9800;">
                             利润率 = (市场价格 - 商品价格) / 市场价格 × 100%
                         </p>
                     </div>
                     
-                    <div style="background: ${theme.secondaryBackground}; padding: 15px; border-radius: 8px;">
-                        <h4 style="color: ${theme.text}; margin-bottom: 8px;">4. 高亮条件判断</h4>
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                        <h4 style="color: #333; margin-bottom: 8px;">4. 高亮条件判断</h4>
                         <p style="margin: 0; font-family: monospace; color: #9c27b0;">
                             基本逻辑 = 满足所有"必须满足"的条件 AND 至少满足一个"只要满足就提醒"的条件
                         </p>
                         <p style="margin: 10px 0 0 0; font-size: 12px; color: #ff6b6b;">
                             <strong>特殊规则</strong>：如果启用了特定品种条件，则特定品种中的商品需先满足特定品种条件，其他商品直接判断其他条件
                         </p>
-                        <p style="margin: 10px 0 0 0; font-size: 12px; color: ${theme.secondaryText};">
+                        <p style="margin: 10px 0 0 0; font-size: 12px; color: #666;">
                             最小利润/利润率条件可以设置为：关闭、必须满足、只要满足就提醒<br>
                             特定品种条件可以设置为：关闭、启用（格式：物品1,数量,价格;物品2,数量,价格）<br>
                             特定品种条件判断：商品名称匹配 AND 商品数量≥设定数量 AND 商品价格≤设定价格（三个条件同时满足）<br>
@@ -1632,8 +1567,8 @@
                 </div>
                 
                 <div style="margin-bottom: 20px;">
-                    <h3 style="color: ${theme.isDarkMode ? '#9ca3af' : '#667eea'}; margin-bottom: 10px;">🔍 数据提取流程</h3>
-                    <ol style="line-height: 1.8; color: ${theme.secondaryText}; padding-left: 20px;">
+                    <h3 style="color: #667eea; margin-bottom: 10px;">🔍 数据提取流程</h3>
+                    <ol style="line-height: 1.8; color: #555; padding-left: 20px;">
                         <li>扫描页面中所有符合 <code>.border.rounded-lg.p-2.overflow-auto</code> CSS 类的商品卡片</li>
                         <li>从每个商品卡片中提取：
                             <ul style="margin-top: 5px; padding-left: 20px;">
@@ -1649,8 +1584,8 @@
                 </div>
                 
                 <div style="margin-bottom: 20px;">
-                    <h3 style="color: ${theme.isDarkMode ? '#9ca3af' : '#667eea'}; margin-bottom: 10px;">🎨 颜色标识说明</h3>
-                    <ul style="line-height: 1.8; color: ${theme.secondaryText}; padding-left: 20px;">
+                    <h3 style="color: #667eea; margin-bottom: 10px;">🎨 颜色标识说明</h3>
+                    <ul style="line-height: 1.8; color: #555; padding-left: 20px;">
                         <li><span style="display: inline-block; width: 15px; height: 15px; background: ${CONFIG.profitColor}; margin-right: 8px; border-radius: 3px;"></span>绿色：表示盈利（利润为正数）</li>
                         <li><span style="display: inline-block; width: 15px; height: 15px; background: ${CONFIG.lossColor}; margin-right: 8px; border-radius: 3px;"></span>红色：表示亏损（利润为负数）</li>
                         <li><span style="display: inline-block; width: 15px; height: 15px; background: ${CONFIG.highlightColor}; margin-right: 8px; border-radius: 3px;"></span>黄色：表示符合高亮条件的商品</li>
@@ -1658,8 +1593,8 @@
                 </div>
                 
                 <div style="margin-bottom: 20px;">
-                    <h3 style="color: ${theme.isDarkMode ? '#9ca3af' : '#667eea'}; margin-bottom: 10px;">💡 使用提示</h3>
-                    <ul style="line-height: 1.8; color: ${theme.secondaryText}; padding-left: 20px;">
+                    <h3 style="color: #667eea; margin-bottom: 10px;">💡 使用提示</h3>
+                    <ul style="line-height: 1.8; color: #555; padding-left: 20px;">
                         <li>1.点击页面右上角的 ⚙️ 按钮可以调整最小利润、利润率和特定品种参数</li>
                         <li>每个条件可以单独设置为"关闭"、"必须满足"或"只要满足就提醒"</li>
                         <li>如果设置了"必须满足"的条件，则必须同时满足所有这些条件才会高亮</li>
@@ -1678,7 +1613,7 @@
                 <div style="text-align: center; margin-top: 25px;">
                     <button onclick="this.parentElement.parentElement.remove()" style="
                         padding: 10px 25px;
-                        background: ${theme.tableHeader};
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                         color: white;
                         border: none;
                         border-radius: 6px;
@@ -1705,421 +1640,9 @@
         }
     }
     
-    // 主函数B - 用于 https://www.torn.com/bazaar.php?userId=*
-    function mainFunctionB() {
-        console.log('主函数B已执行 - 开始实现高亮功能');
-        
-        // 高亮样式配置
-        const HIGHLIGHT_CONFIG = {
-            backgroundColor: '#ffeb3b',  // 黄色背景
-            color: '#000',               // 黑色文字
-            fontWeight: 'bold',          // 粗体
-            padding: '2px 4px',          // 内边距
-            borderRadius: '3px',         // 圆角
-            transition: 'all 0.3s ease'  // 过渡效果
-        };
-
-        // 添加高亮样式到页面
-        function addHighlightStyles() {
-            const style = document.createElement('style');
-            style.textContent = `
-                .gm-highlight-b {
-                    background-color: ${HIGHLIGHT_CONFIG.backgroundColor} !important;
-                    color: ${HIGHLIGHT_CONFIG.color} !important;
-                    font-weight: ${HIGHLIGHT_CONFIG.fontWeight} !important;
-                    padding: ${HIGHLIGHT_CONFIG.padding} !important;
-                    border-radius: ${HIGHLIGHT_CONFIG.borderRadius} !important;
-                    transition: ${HIGHLIGHT_CONFIG.transition} !important;
-                    box-shadow: 0 1px 3px rgba(0,0,0,0.2) !important;
-                    position: relative !important;
-                    z-index: 1000 !important;
-                }
-                
-                .gm-highlight-b:hover {
-                    background-color: #ffc107 !important;
-                    transform: scale(1.05) !important;
-                }
-                
-                /* 防止嵌套高亮 */
-                .gm-highlight-b .gm-highlight-b {
-                    background-color: transparent !important;
-                    color: inherit !important;
-                    font-weight: inherit !important;
-                    padding: 0 !important;
-                    border-radius: 0 !important;
-                    box-shadow: none !important;
-                }
-                
-                /* 高亮状态显示面板 */
-                .highlight-status-panel-b {
-                    position: fixed;
-                    top: 80px;
-                    right: 20px;
-                    background: rgba(0, 0, 0, 0.8);
-                    color: white;
-                    padding: 15px;
-                    border-radius: 8px;
-                    font-family: Arial, sans-serif;
-                    font-size: 14px;
-                    z-index: 10000;
-                    min-width: 200px;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-                    backdrop-filter: blur(5px);
-                }
-                
-                .highlight-status-panel-b .status-title {
-                    font-weight: bold;
-                    margin-bottom: 8px;
-                    color: #ffeb3b;
-                }
-                
-                .highlight-status-panel-b .status-text {
-                    word-break: break-all;
-                    line-height: 1.4;
-                }
-                
-                .highlight-status-panel-b .status-time {
-                    font-size: 12px;
-                    color: #ccc;
-                    margin-top: 8px;
-                }
-                
-                .highlight-status-panel-b .no-highlight {
-                    color: #999;
-                    font-style: italic;
-                }
-            `;
-            document.head.appendChild(style);
-        }
-
-        // 清除之前的高亮
-        function clearPreviousHighlights() {
-            const highlightedElements = document.querySelectorAll('.gm-highlight-b');
-            highlightedElements.forEach(element => {
-                const parent = element.parentNode;
-                if (parent) {
-                    // 将高亮元素的内容替换回原始文本
-                    parent.replaceChild(document.createTextNode(element.textContent), element);
-                    // 合并相邻的文本节点
-                    parent.normalize();
-                }
-            });
-        }
-
-        // 高亮文本节点中的匹配内容
-        function highlightTextNodes(node, searchText) {
-            if (!node || !searchText || searchText.trim() === '') return;
-            
-            // 跳过脚本、样式等特殊元素
-            if (node.nodeType === 1) {
-                const tagName = node.tagName.toLowerCase();
-                if (['script', 'style', 'noscript', 'iframe', 'object', 'embed'].includes(tagName)) {
-                    return;
-                }
-                
-                // 跳过已经高亮的元素
-                if (node.classList && node.classList.contains('gm-highlight-b')) {
-                    return;
-                }
-            }
-            
-            // 处理文本节点
-            if (node.nodeType === 3) {
-                const text = node.textContent;
-                if (text.toLowerCase().includes(searchText.toLowerCase())) {
-                    console.log('找到匹配的文本节点:', text.substring(0, 50) + '...');
-                    const regex = new RegExp(`(${searchText})`, 'gi');
-                    const matches = text.match(regex);
-                    
-                    if (matches) {
-                        console.log('匹配到的内容:', matches);
-                        const fragment = document.createDocumentFragment();
-                        let lastIndex = 0;
-                        
-                        text.replace(regex, (match, p1, offset) => {
-                            // 添加匹配前的文本
-                            if (offset > lastIndex) {
-                                fragment.appendChild(document.createTextNode(text.substring(lastIndex, offset)));
-                            }
-                            
-                            // 创建高亮元素
-                            const highlightSpan = document.createElement('span');
-                            highlightSpan.className = 'gm-highlight-b';
-                            highlightSpan.textContent = match;
-                            fragment.appendChild(highlightSpan);
-                            
-                            lastIndex = offset + match.length;
-                        });
-                        
-                        // 添加剩余的文本
-                        if (lastIndex < text.length) {
-                            fragment.appendChild(document.createTextNode(text.substring(lastIndex)));
-                        }
-                        
-                        // 替换原始文本节点
-                        if (fragment.childNodes.length > 0) {
-                            node.parentNode.replaceChild(fragment, node);
-                            console.log('已高亮文本节点');
-                        }
-                    }
-                }
-            } else if (node.nodeType === 1 && node.childNodes) {
-                // 递归处理子节点
-                const childNodes = Array.from(node.childNodes);
-                childNodes.forEach(child => {
-                    highlightTextNodes(child, searchText);
-                });
-            }
-        }
-
-        // 高亮页面中匹配的文本
-        function highlightPageContent(itemName, shouldScroll = true) {
-            if (!itemName || itemName.trim() === '') return;
-            
-            console.log('开始高亮页面内容:', itemName);
-            console.log('当前页面URL:', window.location.href);
-            
-            // 清除之前的高亮
-            clearPreviousHighlights();
-            
-            // 从body开始递归高亮文本
-            if (document.body) {
-                console.log('开始遍历DOM树进行高亮...');
-                highlightTextNodes(document.body, itemName);
-                
-                // 只有在shouldScroll为true时才滚动到第一个高亮元素
-                if (shouldScroll) {
-                    // 检查高亮结果并滚动到第一个高亮元素
-                    setTimeout(() => {
-                        const highlightedElements = document.querySelectorAll('.gm-highlight-b');
-                        console.log('高亮完成，找到的高亮元素数量:', highlightedElements.length);
-                        if (highlightedElements.length > 0) {
-                            console.log('高亮元素示例:', highlightedElements[0]);
-                            
-                            // 滚动到第一个高亮元素
-                            scrollToFirstHighlight(highlightedElements[0]);
-                        }
-                    }, 100);
-                }
-            } else {
-                console.log('页面body不存在，无法进行高亮');
-            }
-            
-            console.log('高亮处理完成:', itemName);
-        }
-        
-        // 滚动到第一个高亮元素
-        function scrollToFirstHighlight(firstHighlightElement) {
-            if (!firstHighlightElement) return;
-            
-            try {
-                // 使用scrollIntoView方法将元素滚动到视图中心
-                firstHighlightElement.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'center',
-                    inline: 'center'
-                });
-                
-                console.log('已滚动到第一个高亮元素');
-                
-                // 添加一个临时的高亮效果，让用户更容易注意到
-                const originalBg = firstHighlightElement.style.backgroundColor;
-                firstHighlightElement.style.backgroundColor = '#ff5722';
-                firstHighlightElement.style.transition = 'background-color 0.5s ease';
-                
-                // 1秒后恢复原始颜色
-                setTimeout(() => {
-                    firstHighlightElement.style.backgroundColor = originalBg;
-                }, 1000);
-                
-            } catch (error) {
-                console.error('滚动到高亮元素时出错:', error);
-                
-                // 如果scrollIntoView失败，尝试使用传统的滚动方法
-                try {
-                    const elementRect = firstHighlightElement.getBoundingClientRect();
-                    const absoluteElementTop = elementRect.top + window.pageYOffset;
-                    const middlePosition = absoluteElementTop - (window.innerHeight / 2);
-                    
-                    window.scrollTo({
-                        top: middlePosition,
-                        behavior: 'smooth'
-                    });
-                    
-                    console.log('使用传统方法滚动到高亮元素');
-                } catch (scrollError) {
-                    console.error('传统滚动方法也失败:', scrollError);
-                }
-            }
-        }
-
-        // 创建或更新高亮状态显示面板
-        function updateStatusPanel(itemName, expireTime) {
-            // 查找现有的状态面板
-            let statusPanel = document.getElementById('highlight-status-panel-b');
-            
-            // 如果不存在，创建一个新的
-            if (!statusPanel) {
-                statusPanel = document.createElement('div');
-                statusPanel.id = 'highlight-status-panel-b';
-                statusPanel.className = 'highlight-status-panel-b';
-                document.body.appendChild(statusPanel);
-            }
-            
-            // 更新面板内容
-            if (itemName && itemName.trim() !== '') {
-                const remainingTime = expireTime ? Math.max(0, Math.round((expireTime - Date.now()) / 1000)) : 0;
-                statusPanel.innerHTML = `
-                    <div class="status-title">当前高亮：</div>
-                    <div class="status-text">${itemName}</div>
-                    <div class="status-time">剩余时间：${remainingTime}秒</div>
-                `;
-            } else {
-                statusPanel.innerHTML = `
-                    <div class="status-title">当前高亮：</div>
-                    <div class="no-highlight">无高亮内容</div>
-                `;
-            }
-        }
-
-        // 检查GM存储中的高亮数据
-        function checkHighlightData() {
-            try {
-                console.log('开始检查GM存储中的高亮数据...');
-                const highlightData = GM_getValue('highlightItem', null);
-                console.log('读取到的GM存储数据:', highlightData);
-                
-                if (highlightData) {
-                    const currentTime = Date.now();
-                    console.log('当前时间:', currentTime, '数据过期时间:', highlightData.expireTime);
-                    
-                    // 检查数据是否过期
-                    if (highlightData.expireTime && currentTime < highlightData.expireTime) {
-                        // 数据未过期，执行高亮
-                        if (highlightData.itemName && highlightData.itemName.trim() !== '') {
-                            console.log('数据未过期，开始高亮物品:', highlightData.itemName);
-                            highlightPageContent(highlightData.itemName, false); // 传递false参数，不自动滚动
-                            // 更新状态面板
-                            updateStatusPanel(highlightData.itemName, highlightData.expireTime);
-                        } else {
-                            console.log('物品名称为空，跳过高亮');
-                            updateStatusPanel('', null);
-                        }
-                    } else {
-                        // 数据已过期，清除高亮并删除存储
-                        console.log('数据已过期，清除高亮并删除存储');
-                        clearPreviousHighlights();
-                        if (typeof GM_deleteValue !== 'undefined') {
-                            GM_deleteValue('highlightItem');
-                            console.log('已删除过期的GM存储数据');
-                        }
-                        // 更新状态面板
-                        updateStatusPanel('', null);
-                    }
-                } else {
-                    // 没有高亮数据，清除之前的高亮
-                    console.log('没有找到高亮数据，清除之前的高亮');
-                    clearPreviousHighlights();
-                    // 更新状态面板
-                    updateStatusPanel('', null);
-                }
-            } catch (error) {
-                console.error('检查高亮数据时出错:', error);
-            }
-        }
-
-        // 初始化主函数B
-        function initMainB() {
-            console.log('=== 主函数B初始化开始 ===');
-            console.log('当前页面URL:', window.location.href);
-            
-            // 添加高亮样式
-            addHighlightStyles();
-            
-            // 创建初始状态面板
-            updateStatusPanel('', null);
-            
-            // 立即检查一次高亮数据
-            checkHighlightData();
-            
-            // 每0.5秒检查一次高亮数据
-            setInterval(checkHighlightData, 500);
-            
-            // 每秒更新一次状态面板的剩余时间
-            setInterval(() => {
-                const highlightData = GM_getValue('highlightItem', null);
-                if (highlightData && highlightData.expireTime && highlightData.itemName) {
-                    const currentTime = Date.now();
-                    if (currentTime < highlightData.expireTime) {
-                        updateStatusPanel(highlightData.itemName, highlightData.expireTime);
-                    }
-                }
-            }, 1000);
-            
-            // 监听页面变化，确保动态加载的内容也能被高亮
-            const observer = new MutationObserver(function(mutations) {
-                mutations.forEach(function(mutation) {
-                    if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-                        // 页面内容发生变化时，重新检查高亮数据
-                        setTimeout(checkHighlightData, 100);
-                    }
-                });
-            });
-            
-            observer.observe(document.body, {
-                childList: true,
-                subtree: true
-            });
-            
-            // 添加控制台命令，方便调试
-            window.clearHighlightsB = function() {
-                clearPreviousHighlights();
-                console.log('已清除所有高亮');
-            };
-
-            window.checkHighlightDataB = checkHighlightData;
-            
-            // 添加测试函数，用于手动测试高亮功能
-            window.testHighlightB = function(itemName) {
-                if (!itemName) {
-                    itemName = 'Xanax'; // 默认测试物品名称
-                }
-                
-                console.log('手动测试高亮功能，物品名称:', itemName);
-                
-                // 创建测试数据
-                const testData = {
-                    itemName: itemName,
-                    expireTime: Date.now() + 15000 // 15秒后过期
-                };
-                
-                // 保存到GM存储
-                if (typeof GM_setValue !== 'undefined') {
-                    GM_setValue('highlightItem', testData);
-                    console.log('已保存测试数据到GM存储:', testData);
-                    
-                    // 立即检查高亮数据
-                    checkHighlightData();
-                } else {
-                    console.error('GM_setValue 不可用，无法保存测试数据');
-                }
-            };
-            
-            console.log('=== 主函数B初始化完成 ===');
-        }
-
-        // 页面加载完成后初始化
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initMainB);
-        } else {
-            initMainB();
-        }
-    }
     
     // 根据当前URL执行对应的主函数
     if (window.location.href.includes('weav3r.dev/favorites')) {
         mainFunctionA();
-    } else if (window.location.href.includes('torn.com/bazaar.php?userId=')) {
-        mainFunctionB();
     }
 })();
