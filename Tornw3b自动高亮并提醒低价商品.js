@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tornw3b自动高亮并提醒低价商品
 // @namespace    https://github.com/pakeh2866
-// @version      0.7
+// @version      0.7.1
 // @description  w3b中低于某个价格，利润在x%以上的高亮显示,并提醒
 // @author       pakeh[3973672]  如果对你有那么一点点帮助，可以send我一个Xan
 // @match        https://weav3r.dev/favorites
@@ -16,6 +16,11 @@
 
 /*
  * ==================== 更新日志 ====================
+ *
+ * 版本 0.7.1 (2026-06-21)
+ * - 修复：修复商品数据面板位置异常的问题。
+ * - 新增：增加 @updateURL 和 @downloadURL，支持脚本管理器自动检查更新。
+ * - 优化：更新本地版本号为 0.7。
  *
  * 版本 0.5 (2026-01-01)
  * - 修复：优化了商品卡片持续高亮的BUG。
