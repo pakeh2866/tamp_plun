@@ -1093,7 +1093,7 @@
             }
             
             // 查找目标容器元素
-            const targetContainer = document.querySelector('.max-w-7xl.mx-auto.py-6.px-3.sm\\:px-5');
+            const targetContainer = document.querySelector('.max-w-7xl.mx-auto.py-3.px-3.sm\\:px-5');
             
             const displayContainer = document.createElement('div');
             displayContainer.id = 'item-data-display';
@@ -1451,7 +1451,8 @@
                 displayContainer.style.cssText = `
                     position: fixed;
                     bottom: 10px;
-                    left: 10px;
+                    left: 50%;
+                    transform: translateX(-50%);
                     width: 1100px;
                     max-height: 85vh;
                     background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
