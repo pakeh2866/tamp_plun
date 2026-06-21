@@ -1,10 +1,12 @@
 // ==UserScript==
 // @name         Tornw3b自动高亮并提醒低价商品
 // @namespace    https://github.com/pakeh2866
-// @version      0.6
+// @version      0.7
 // @description  w3b中低于某个价格，利润在x%以上的高亮显示,并提醒
 // @author       pakeh[3973672]  如果对你有那么一点点帮助，可以send我一个Xan
 // @match        https://weav3r.dev/favorites
+// @updateURL    https://raw.githubusercontent.com/pakeh2866/tamp_plun/refs/heads/main/Tornw3b%E8%87%AA%E5%8A%A8%E9%AB%98%E4%BA%AE%E5%B9%B6%E6%8F%90%E9%86%92%E4%BD%8E%E4%BB%B7%E5%95%86%E5%93%81.js
+// @downloadURL  https://raw.githubusercontent.com/pakeh2866/tamp_plun/refs/heads/main/Tornw3b%E8%87%AA%E5%8A%A8%E9%AB%98%E4%BA%AE%E5%B9%B6%E6%8F%90%E9%86%92%E4%BD%8E%E4%BB%B7%E5%95%86%E5%93%81.js
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=torn.com
 // @grant        GM_notification
 // @grant        GM_setValue
