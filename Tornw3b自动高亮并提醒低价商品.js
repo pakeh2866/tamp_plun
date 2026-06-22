@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tornw3b自动高亮并提醒低价商品
 // @namespace    https://github.com/pakeh2866
-// @version      0.7.1
+// @version      0.7.2
 // @description  w3b中低于某个价格，利润在x%以上的高亮显示,并提醒
 // @author       pakeh[3973672]  如果对你有那么一点点帮助，可以send我一个Xan
 // @match        https://weav3r.dev/favorites
@@ -16,7 +16,9 @@
 
 /*
  * ==================== 更新日志 ====================
- *
+ *版本 0.7.2 (2026-06-22)
+ * - 修复：设置按钮BUG
+ * 
  * 版本 0.7.1 (2026-06-21)
  * - 修复：修复商品数据面板位置异常的问题。
  * - 新增：增加 @updateURL 和 @downloadURL，支持脚本管理器自动检查更新。
@@ -188,8 +190,35 @@
             // 添加额外的样式
             settingButton.style.marginRight = '5px';
             settingButton.style.cursor = 'pointer';
-            settingButton.style.minWidth = '40px';
-            settingButton.style.fontSize = '16px';
+            settingButton.style.minWidth = '42px';
+            settingButton.style.height = '42px';
+            settingButton.style.fontSize = '20px';
+            settingButton.style.lineHeight = '1';
+            settingButton.style.display = 'flex';
+            settingButton.style.alignItems = 'center';
+            settingButton.style.justifyContent = 'center';
+            settingButton.style.color = '#1f2937';
+            settingButton.style.background = 'rgba(255, 255, 255, 0.92)';
+            settingButton.style.border = '1px solid rgba(148, 163, 184, 0.55)';
+            settingButton.style.borderRadius = '12px';
+            settingButton.style.boxShadow = '0 8px 24px rgba(15, 23, 42, 0.16)';
+            settingButton.style.backdropFilter = 'blur(8px)';
+            settingButton.style.webkitBackdropFilter = 'blur(8px)';
+            settingButton.style.transition = 'transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, border-color 0.18s ease';
+            
+            settingButton.addEventListener('mouseenter', function() {
+                settingButton.style.transform = 'translateY(-1px) scale(1.04)';
+                settingButton.style.boxShadow = '0 12px 30px rgba(15, 23, 42, 0.22)';
+                settingButton.style.background = '#ffffff';
+                settingButton.style.borderColor = 'rgba(37, 99, 235, 0.45)';
+            });
+            
+            settingButton.addEventListener('mouseleave', function() {
+                settingButton.style.transform = 'translateY(0) scale(1)';
+                settingButton.style.boxShadow = '0 8px 24px rgba(15, 23, 42, 0.16)';
+                settingButton.style.background = 'rgba(255, 255, 255, 0.92)';
+                settingButton.style.borderColor = 'rgba(148, 163, 184, 0.55)';
+            });
             
             // 设置按钮的点击事件
             settingButton.addEventListener('click', function() {
@@ -346,36 +375,33 @@
         
         // 插入设置按钮到目标位置
         function insertSettingButton() {
-            // 将设置按钮插入到页面指定位置，如果找不到目标位置则固定在右上角
-            const targetButtons = document.querySelectorAll('.p-2.rounded-md.transition-colors.relative');
-            
-            if (targetButtons.length > 0) {
-                const targetButton = targetButtons[0];
-                
-                const existingSettingButton = targetButton.parentNode.querySelector('[data-setting-button]');
-                if (existingSettingButton) {
-                    return;
-                }
-                
-                const settingButton = createSettingButton();
-                settingButton.setAttribute('data-setting-button', 'true');
-                
-                targetButton.parentNode.insertBefore(settingButton, targetButton);
-            } else {
-                const existingFixedButton = document.querySelector('[data-setting-button-fixed]');
-                if (existingFixedButton) {
-                    return;
-                }
-                
-                const settingButton = createSettingButton();
-                settingButton.setAttribute('data-setting-button-fixed', 'true');
-                settingButton.style.position = 'fixed';
-                settingButton.style.top = '10px';
-                settingButton.style.right = '10px';
-                settingButton.style.zIndex = '9999';
-                
-                document.body.appendChild(settingButton);
+            const existingSettingButton = document.querySelector('[data-setting-button]');
+            const existingFixedButton = document.querySelector('[data-setting-button-fixed]');
+            if (existingSettingButton || existingFixedButton) {
+                return;
             }
+            
+            const settingButton = createSettingButton();
+            settingButton.setAttribute('data-setting-button-fixed', 'true');
+            settingButton.style.position = 'fixed';
+            settingButton.style.top = '10px';
+            settingButton.style.right = '10px';
+            settingButton.style.zIndex = '2147483647';
+            settingButton.style.top = '14px';
+            settingButton.style.right = '14px';
+            settingButton.style.background = 'rgba(255, 255, 255, 0.92)';
+            settingButton.style.color = '#1f2937';
+            settingButton.style.border = '1px solid rgba(148, 163, 184, 0.55)';
+            settingButton.style.borderRadius = '12px';
+            settingButton.style.boxShadow = '0 8px 24px rgba(15, 23, 42, 0.16)';
+            settingButton.style.padding = '0';
+            settingButton.style.display = 'flex';
+            settingButton.style.alignItems = 'center';
+            settingButton.style.justifyContent = 'center';
+            settingButton.style.visibility = 'visible';
+            settingButton.style.opacity = '1';
+            
+            document.body.appendChild(settingButton);
         }
         
         // 页面加载完成后执行
